@@ -1,0 +1,50 @@
+---
+title: SDK overview
+description: Official Fact0 client libraries for Python, TypeScript, and Go.
+---
+
+# SDK overview
+
+All SDKs target **https://api.fact0.io** by default. Set `FACT0_API_KEY` (or pass `apiKey` / `APIKey` in code) with a write-scoped key from [app.fact0.io](https://app.fact0.io).
+
+| Language | Package | Version | Install |
+|----------|---------|---------|---------|
+| Python | `fact0-sdk` | `1.0.0` | `pip install fact0-sdk` |
+| TypeScript | `@fact0/sdk` | `1.0.0` | `npm install @fact0/sdk` |
+| Go | `github.com/fact0-ai/fact0-go` | `1.0.0` | `go get github.com/fact0-ai/fact0-go` |
+
+<Note>
+  Python imports use `import fact0`. The PyPI distribution is **`fact0-sdk`** because the bare name `fact0` is reserved on PyPI.
+</Note>
+
+## Modules
+
+Every SDK exposes two clients:
+
+| Module | API prefix | Purpose |
+|--------|------------|---------|
+| **Audit** | `/v1/*` | Tamper-evident audit log - ingest, query, verify, export |
+| **Telemetry** | `/api/v1/*` | Execution tracing - spans, DAG, replay |
+
+## Environment variables
+
+| Variable | Used by | Default |
+|----------|---------|---------|
+| `FACT0_API_KEY` | All SDKs | - (required) |
+| `FACT0_BASE_URL` | All SDKs | `https://api.fact0.io` |
+
+## Quick links
+
+<CardGroup cols={3}>
+  <Card title="Python" icon="python" href="/sdk/python/installation">
+    `pip install fact0-sdk`
+  </Card>
+  <Card title="TypeScript" icon="js" href="/sdk/typescript/installation">
+    `npm install @fact0/sdk`
+  </Card>
+  <Card title="Go" icon="golang" href="/sdk/go/installation">
+    `go get github.com/fact0-ai/fact0-go`
+  </Card>
+</CardGroup>
+
+Release notes: [Changelog](/changelog).

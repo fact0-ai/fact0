@@ -10,7 +10,6 @@ from .audit.client import AuditClient
 from .audit.models import Actor, ActorType, Outcome, Resource
 from .audit.transport import AuditTransport
 from .exceptions import (
-    AuditLogError,
     Fact0Error,
     TransportError,
     ValidationError,
@@ -30,7 +29,6 @@ __all__ = [
     "Outcome",
     "ActorType",
     "Fact0Error",
-    "AuditLogError",
     "ValidationError",
     "TransportError",
     "__version__",

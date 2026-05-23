@@ -12,8 +12,11 @@ This site lives in the **`docs/`** folder of the [fact0-ai/fact0](https://github
 
 ## Local preview
 
+Requires Node **20 or 22** (LTS). Node 25+ is not supported by Mintlify.
+
 ```bash
 cd docs
+export PATH="/opt/homebrew/opt/node@22/bin:$PATH"   # if `node -v` shows 25+
 npx mintlify dev
 ```
 

@@ -24,12 +24,3 @@ with client.telemetry.execution(agent_id="bot-1") as ex:
 ```
 
 Docs: [docs.fact0.io](https://docs.fact0.io)
-
-## Legacy imports
-
-```python
-import fact0  # deprecated shim → fact0
-import auditlog    # deprecated shim → fact0.audit
-```
-
-Both emit `DeprecationWarning` on import.

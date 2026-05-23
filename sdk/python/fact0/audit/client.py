@@ -14,7 +14,7 @@ from typing import Any, Iterator, Optional
 from pydantic import ValidationError as PydanticValidationError
 
 from .._http import DEFAULT_TIMEOUT_S, SyncHTTP
-from ..exceptions import AuditLogError, TransportError, ValidationError
+from ..exceptions import Fact0Error, TransportError, ValidationError
 from .models import Event
 from .transport import AuditTransport
 
@@ -203,7 +203,7 @@ class AuditClient:
             if receipt_id and self._poll_receipts and result.get("status") == "queued":
                 self._transport.poll_receipt(receipt_id)
             return result
-        except (TransportError, AuditLogError) as exc:
+        except (TransportError, Fact0Error) as exc:
             self._dead_letter(buf, exc)
             if self._raise_on_error:
                 raise

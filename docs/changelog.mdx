@@ -5,30 +5,30 @@ description: SDK and API release notes.
 
 # Changelog
 
-## v1.0.0 - 2026-05-21
+## v1.0.0 - 2026-05-23
 
-### SDK
+### Python (`fact0-sdk`)
 
-- **`fact0` Python package** - unified client with `audit` and `telemetry` modules
-- Full audit surface: read, verify, export, receipts, SSE stream
-- Async audit client via `httpx`
-- **`auditlog-sdk` compatibility shim** - `import auditlog` continues to work
+- First public release on PyPI as **`fact0-sdk`** (`pip install fact0-sdk`, `import fact0`)
+- Unified client with `audit` and `telemetry` modules
+- Background batching, async client, dead-letter support, LangChain/FastAPI integrations
+- PyPI name is `fact0-sdk` (not `fact0`) - the bare name conflicts with an existing package on PyPI
 
-### TypeScript & Go
+### TypeScript (`@fact0/sdk`)
 
-- **`@fact0/sdk`** - audit + telemetry clients for Node.js
-- **`github.com/fact0-ai/fact0-go`** - native Go client
+- Audit + telemetry HTTP clients for Node.js
+- Published to npm at `@fact0/sdk@1.0.0`
+
+### Go (`github.com/fact0-ai/fact0-go`)
+
+- Native Go client with audit and telemetry modules
+- Retries on 429/5xx, configurable timeouts
 
 ### Documentation
 
-- Migrated to [Mintlify](https://mintlify.com) at docs.fact0.io
-- OpenAPI 3.1 specs for Audit and Telemetry APIs with interactive playground
+- Mintlify site at [docs.fact0.io](https://docs.fact0.io)
+- OpenAPI 3.1 reference for Audit and Telemetry APIs (production server: `https://api.fact0.io`)
 
-### Breaking changes from v0.1
+### Environment variables
 
-- Preferred import: `import fact0` (was `import auditlog`)
-- Environment variables: `FACT0_API_KEY` (was `AUDITLOG_API_KEY`)
-
-## v0.1.0
-
-- Initial `auditlog-sdk` - write-only audit client with background batching
+- `FACT0_API_KEY`, `FACT0_BASE_URL` (default `https://api.fact0.io`)

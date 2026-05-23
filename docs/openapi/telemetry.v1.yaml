@@ -10,8 +10,6 @@ info:
 servers:
   - url: https://api.fact0.io
     description: Fact0 Cloud
-  - url: http://localhost:8000
-    description: Local development
 tags:
   - name: Ingest
   - name: Query

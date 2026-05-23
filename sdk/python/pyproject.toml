@@ -37,7 +37,7 @@ fastapi = [
 license-files = []
 
 [tool.setuptools.packages.find]
-include = ["fact0*", "auditlog*"]
+include = ["fact0*"]
 exclude = ["tests*"]
 
 [build-system]
@@ -48,7 +48,6 @@ build-backend = "setuptools.build_meta"
 testpaths = ["tests"]
 filterwarnings = [
   "ignore::DeprecationWarning:fact0",
-  "ignore::DeprecationWarning:auditlog",
   "ignore::pytest.PytestUnraisableExceptionWarning",
   "ignore::ResourceWarning",
 ]

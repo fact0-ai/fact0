@@ -30,7 +30,6 @@ def env_api_key() -> str | None:
     return (
         os.environ.get("FACT0_API_KEY")
         or os.environ.get("FACT0_API_KEY")
-        or os.environ.get("AUDITLOG_API_KEY")
     )
 
 

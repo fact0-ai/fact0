@@ -4,7 +4,7 @@
   "name": "Fact0",
   "logo": {
     "light": "/logo.svg",
-    "dark": "/logo.svg"
+    "dark": "/logo-dark.svg"
   },
   "favicon": "/logo.svg",
   "colors": {
@@ -79,6 +79,12 @@
       {
         "tab": "SDK",
         "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "sdk/overview"
+            ]
+          },
           {
             "group": "Python",
             "pages": [

@@ -7,10 +7,6 @@ class Fact0Error(Exception):
     """Base class for SDK errors."""
 
 
-# Back-compat aliases
-AuditLogError = Fact0Error
-
-
 class ValidationError(Fact0Error):
     """Invalid event fields or types."""
 

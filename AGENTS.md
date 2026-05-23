@@ -37,8 +37,6 @@ client.telemetry.start_execution(...)
 
 Optional: `from fact0.integrations.langchain import Fact0CallbackHandler`
 
-Legacy shim: `import auditlog` (deprecated, re-exports `fact0.audit.Client`).
-
 ### TypeScript
 
 ```typescript
@@ -110,7 +108,7 @@ Mintlify monorepo: connect this GitHub repo, set docs root to **`docs/`**. See `
 
 | Tag | Publishes |
 |-----|-----------|
-| `sdk/python/v1.0.1` | PyPI `fact0-sdk` |
+| `sdk/python/v1.0.1` | PyPI `fact0` |
 | `sdk/typescript/v1.0.1` | npm `@fact0/sdk` |
 | `sdk/go/v1.0.1` | Git tag for `go get` |
 

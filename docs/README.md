@@ -16,19 +16,33 @@ See [MINTLIFY.md](./MINTLIFY.md) for dashboard setup and migration from `iyashja
 
 ## Local preview
 
+Mintlify requires **Node LTS** (20 or 22). Homebrew’s default `node` may be 25+, which Mintlify rejects.
+
 ```bash
 cd docs
+
+# Homebrew: use node@22 for this shell (already installed on most dev machines)
+export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+
 npx mintlify dev
 ```
+
+With [nvm](https://github.com/nvm-sh/nvm): `nvm use` (reads `.nvmrc` → Node 22).
 
 ## OpenAPI
 
 API reference pages use `openapi/*.yaml`. Sync from the app monorepo (canonical source):
 
 ```bash
-# from fact0-ai/fact0 repo root
+# from docs/ (while previewing Mintlify)
+bash sync-openapi.sh
+
+# or from fact0-ai/fact0 repo root
 bash scripts/sync-openapi-from-app.sh
 ```
+
+Auto-detects the app repo at `../` (nested clone) or `../fact0` (sibling clone).
+Override with `APP_REPO=/path/to/iyashjayesh/fact0` if needed.
 
 ## CI
 

@@ -1,9 +1,18 @@
 ---
 title: Installation
-description: Install the fact0 Python package and connect to Fact0 Cloud.
+description: Install fact0-sdk (v1.0.0) and connect to Fact0 Cloud at https://api.fact0.io.
 ---
 
-# Python installation
+# Python SDK
+
+| | |
+|---|---|
+| **PyPI** | [`fact0-sdk`](https://pypi.org/project/fact0-sdk/) v1.0.0 |
+| **Import** | `import fact0` |
+| **API** | `https://api.fact0.io` |
+| **Requires** | Python 3.10+ |
+
+## Installation
 
 <Steps>
   <Step title="Create an account">
@@ -37,11 +46,3 @@ description: Install the fact0 Python package and connect to Fact0 Cloud.
 The SDK defaults to `https://api.fact0.io`. Override with `FACT0_BASE_URL` only if directed by Fact0 support.
 
 Continue to the [Quickstart](/quickstart).
-
-## Legacy package name
-
-`auditlog-sdk` remains available as a compatibility shim:
-
-```bash
-pip install auditlog-sdk  # re-exports fact0.audit.Client as auditlog.Client
-```
