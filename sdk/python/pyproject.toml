@@ -1,5 +1,5 @@
 [project]
-name = "fact0"
+name = "fact0-sdk"
 version = "1.0.0"
 description = "Fact0 SDK - audit log and execution telemetry for AI agents"
 readme = "README.md"

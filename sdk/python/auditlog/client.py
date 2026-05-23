@@ -10,7 +10,7 @@ from fact0.audit.client import AuditClient
 from fact0.exceptions import AuditLogError, TransportError, ValidationError
 
 warnings.warn(
-    "The auditlog package is deprecated; use `pip install fact0` and `import fact0`.",
+    "The auditlog package is deprecated; use `pip install fact0-sdk` and `import fact0`.",
     DeprecationWarning,
     stacklevel=2,
 )

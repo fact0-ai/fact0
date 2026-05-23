@@ -11,7 +11,7 @@
 
 ## SDKs
 
-- Python: `pip install fact0` - [docs](/sdk/python/installation)
+- Python: `pip install fact0-sdk` - [docs](/sdk/python/installation)
 - TypeScript: `npm install @fact0/sdk` - [docs](/sdk/typescript/installation)
 - Go: `go get github.com/fact0-ai/fact0-go` - [docs](/sdk/go/installation)
 

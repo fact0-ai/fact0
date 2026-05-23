@@ -13,7 +13,7 @@ Context for AI coding assistants working in the Fact0 SDK + docs repository.
 
 | Directory | Description |
 |-----------|-------------|
-| `sdk/python/` | PyPI package `fact0` - audit + telemetry clients, LangChain/FastAPI integrations |
+| `sdk/python/` | PyPI package `fact0-sdk` (`import fact0`) - audit + telemetry clients, LangChain/FastAPI integrations |
 | `sdk/typescript/` | npm `@fact0/sdk` - audit + telemetry HTTP clients |
 | `sdk/go/` | Go module `github.com/fact0-ai/fact0-go` |
 | `docs/` | Mintlify site (`docs.json` at this path) - product + API reference |
@@ -110,7 +110,7 @@ Mintlify monorepo: connect this GitHub repo, set docs root to **`docs/`**. See `
 
 | Tag | Publishes |
 |-----|-----------|
-| `sdk/python/v1.0.1` | PyPI `fact0` |
+| `sdk/python/v1.0.1` | PyPI `fact0-sdk` |
 | `sdk/typescript/v1.0.1` | npm `@fact0/sdk` |
 | `sdk/go/v1.0.1` | Git tag for `go get` |
 

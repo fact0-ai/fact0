@@ -3,7 +3,7 @@
 Python SDK for [Fact0](https://fact0.io) - tamper-evident audit logs and execution telemetry for AI agents.
 
 ```bash
-pip install fact0
+pip install fact0-sdk
 ```
 
 ```python
