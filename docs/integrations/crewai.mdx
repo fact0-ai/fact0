@@ -1,0 +1,49 @@
+---
+title: CrewAI
+description: Audit and trace CrewAI multi-agent workflows with one execution per crew run.
+---
+
+# CrewAI
+
+<Note>
+  A dedicated CrewAI helper is on the roadmap. The pattern below works today.
+</Note>
+
+## Pattern
+
+One execution per crew run, one span per agent task.
+
+```python
+import fact0
+from crewai import Crew, Agent, Task
+
+client = fact0.Client(api_key="alk_live_...")
+
+with client.telemetry.execution(agent_id="research-crew") as ex:
+    crew = Crew(agents=[...], tasks=[...])
+
+    for task in crew.tasks:
+        with ex.span(task.description, span_type="CUSTOM") as span:
+            result = task.execute()
+            span.complete(output={"result": result})
+
+    crew.kickoff()
+```
+
+## Audit high-value actions
+
+For tasks that mutate customer data, also log to the audit pipeline:
+
+```python
+client.audit.log(
+    actor={"id": "agent.researcher", "type": "agent"},
+    action="report.publish",
+    resource={"id": report_id, "type": "report"},
+    outcome="success",
+)
+```
+
+## Related
+
+- [Concepts: executions](/concepts/executions)
+- [Audit client](/sdk/python/audit)

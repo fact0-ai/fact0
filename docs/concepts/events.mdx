@@ -1,0 +1,53 @@
+---
+title: Event schema
+description: Canonical AuditEvent shape validated by Pydantic v2.
+---
+
+# Audit event schema
+
+Every `client.audit.log()` call validates against this shape before enqueue.
+
+## Top-level fields
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `actor` | object | yes | Who performed the action |
+| `action` | string | yes | Dot-notation: `resource.verb` |
+| `resource` | object | yes | Target of the action |
+| `outcome` | enum | yes | `success` \| `failure` \| `error` |
+| `metadata` | object | no | Arbitrary JSON context |
+| `id` | string | no | Client UUID for idempotency; server assigns if omitted |
+| `timestamp` | datetime | no | ISO 8601 UTC; defaults to now |
+
+Server-set fields on committed events: `tenant_id`, `prev_hash`, `hash`, `sequence_number`.
+
+## Actor
+
+```python
+{"id": "user_123", "type": "human", "email": "admin@acme.com"}
+```
+
+`type`: `human` | `agent` | `system`
+
+## Resource
+
+```python
+{"id": "doc_456", "type": "document", "name": "Q3 Report"}
+```
+
+Use stable `resource.id` values you can filter on later.
+
+## Outcome semantics
+
+| Value | Meaning |
+|-------|---------|
+| `success` | Action completed as intended |
+| `failure` | Expected business failure (permission denied, invalid input) |
+| `error` | Unexpected system error (timeout, exception) |
+
+## Common actions
+
+```
+user.login  user.logout  document.delete  agent.run.start
+agent.tool.call  config.update  api_key.revoke  audit.export
+```

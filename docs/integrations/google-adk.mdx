@@ -1,0 +1,60 @@
+---
+title: Google ADK
+description: Instrument Google Agent Development Kit runs with telemetry callbacks.
+---
+
+# Google ADK
+
+<Note>
+  A native ADK extension is on the roadmap. The pattern below uses ADK's public callback hooks.
+</Note>
+
+## Install
+
+```bash
+pip install fact0 google-adk
+```
+
+## Pattern
+
+Register `before_model_callback` / `after_model_callback` to emit spans.
+
+```python
+import fact0
+from google.adk.agents import LlmAgent
+from google.adk.runners import Runner
+
+client = fact0.Client(api_key="alk_live_...")
+
+def before_model(ctx, request):
+    ex = client.telemetry.current_execution()
+    ctx.state["_lf_span"] = ex.start_span(
+        "model.invoke", span_type="MODEL_INVOCATION",
+    )
+
+def after_model(ctx, response):
+    span = ctx.state.pop("_lf_span", None)
+    if span is not None:
+        span.complete(output={"text": getattr(response, "text", "")[:500]})
+
+agent = LlmAgent(
+    name="researcher",
+    model="gemini-2.0-flash",
+    before_model_callback=before_model,
+    after_model_callback=after_model,
+)
+
+with client.telemetry.execution(agent_id="adk.researcher") as ex:
+    runner = Runner(agent=agent, app_name="research", session_service=...)
+    for event in runner.run(user_id="u1", session_id="s1", new_message=...):
+        ...
+```
+
+## Tool callbacks
+
+ADK also exposes `before_tool_callback` and `after_tool_callback` - wrap them the same way and tag the span as `TOOL_CALL`.
+
+## Related
+
+- [Telemetry client](/sdk/python/telemetry)
+- [OpenAI Agents SDK](/integrations/openai-agents-sdk)

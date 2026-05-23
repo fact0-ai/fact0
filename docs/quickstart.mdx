@@ -1,0 +1,89 @@
+---
+title: Quickstart
+description: Send your first audit event and execution trace in under a minute.
+---
+
+# Quickstart
+
+## Prerequisites
+
+- Python 3.10+
+- A Fact0 **write-scoped** API key from [app.fact0.io](https://app.fact0.io)
+
+```bash
+export FACT0_API_KEY="alk_live_..."
+pip install fact0
+```
+
+---
+
+## Track 1 - Audit event (60 seconds)
+
+```python
+import os
+import fact0
+
+client = fact0.Client(api_key=os.environ["FACT0_API_KEY"])
+
+client.audit.log(
+    actor={"id": "user_123", "type": "human", "email": "admin@acme.com"},
+    action="document.delete",
+    resource={"id": "doc_456", "type": "document", "name": "Q3 Report"},
+    outcome="success",
+    metadata={"ip": "203.0.113.5"},
+)
+
+client.close()  # drain buffer; optional in long-running servers (atexit)
+```
+
+Events queue in-process and flush to `POST /v1/events/batch`. By default the server accepts async ingest (`202` + receipt); the SDK polls receipts automatically.
+
+Open [app.fact0.io/dashboard/audit](https://app.fact0.io/dashboard/audit) to see the event with sequence number and hash chain.
+
+### Read events back
+
+```python
+events = client.audit.list_events(resource_id="doc_456", page_size=20)
+for evt in events["events"]:
+    print(evt["action"], evt["outcome"])
+```
+
+---
+
+## Track 2 - Execution trace
+
+```python
+import os
+import fact0
+
+client = fact0.Client(api_key=os.environ["FACT0_API_KEY"])
+
+with client.telemetry.execution(
+    agent_id="weather-bot",
+    agent_name="Weather Bot",
+    trigger="user_query",
+) as ex:
+    with ex.span("tool.geocode", span_type="TOOL_CALL") as span:
+        span.log_event("query", {"city": "San Francisco"})
+        span.complete(output={"lat": 37.77, "lon": -122.42})
+```
+
+View the execution in **Dashboard → Executions** or query `GET /api/v1/executions`.
+
+---
+
+## Async ingest and receipts
+
+| Mode | How | Response |
+|------|-----|----------|
+| Async (default) | No header | `202` + `receipt_id` - poll `GET /v1/receipts/{id}` |
+| Sync | `sync=True` on client or `X-Fact0-Sync: true` | `201` / `200` with committed events |
+
+---
+
+## Next steps
+
+- [Event schema](/concepts/events)
+- [Audit SDK reference](/sdk/python/audit)
+- [Telemetry SDK reference](/sdk/python/telemetry)
+- [Audit vs telemetry](/concepts/audit-vs-telemetry)

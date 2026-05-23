@@ -1,0 +1,66 @@
+---
+title: Next.js
+description: Audit and telemetry from Next.js route handlers, server actions, and middleware.
+---
+
+# Next.js
+
+Fact0 runs server-side - use `@fact0/sdk` from App Router route handlers, server actions, or Edge / Node middleware.
+
+## Install
+
+```bash
+npm install @fact0/sdk
+```
+
+## Route handler
+
+```typescript
+// app/api/invoice/[id]/approve/route.ts
+import { Fact0Client } from "@fact0/sdk";
+
+const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } },
+) {
+  const user = await getSession(req);
+
+  await lf.audit.log({
+    actor: { id: user.id, type: "human", email: user.email },
+    action: "invoice.approve",
+    resource: { id: params.id, type: "invoice" },
+    outcome: "success",
+  });
+
+  return Response.json({ ok: true });
+}
+```
+
+## Server action
+
+```typescript
+"use server";
+import { Fact0Client } from "@fact0/sdk";
+
+const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+
+export async function deleteDocument(id: string) {
+  await lf.audit.log({
+    actor: { id: "user_123", type: "human" },
+    action: "document.delete",
+    resource: { id, type: "document" },
+    outcome: "success",
+  });
+}
+```
+
+<Warning>
+  Keep `FACT0_API_KEY` server-only. Use it from route handlers, server actions, middleware, or Vercel Functions - never from React Client Components.
+</Warning>
+
+## Related
+
+- [TypeScript SDK](/sdk/typescript/installation)
+- [Vercel AI SDK](/integrations/vercel-ai-sdk)

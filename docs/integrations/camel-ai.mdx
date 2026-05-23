@@ -1,0 +1,51 @@
+---
+title: CAMEL AI
+description: Trace CAMEL role-playing sessions and audit agent actions.
+---
+
+# CAMEL AI
+
+<Note>
+  A native CAMEL handler is on the roadmap. The pattern below works with `camel-ai >= 0.2`.
+</Note>
+
+## Install
+
+```bash
+pip install fact0 camel-ai
+```
+
+## Pattern
+
+One execution per role-play session, one span per turn.
+
+```python
+import fact0
+from camel.societies import RolePlaying
+
+client = fact0.Client(api_key="alk_live_...")
+
+session = RolePlaying(
+    assistant_role_name="Engineer",
+    user_role_name="Product Manager",
+    task_prompt="Design an audit log SDK",
+)
+
+with client.telemetry.execution(agent_id="camel.design-session") as ex:
+    input_msg = session.init_chat()
+    for turn in range(8):
+        with ex.span(f"turn-{turn}", span_type="MODEL_INVOCATION") as span:
+            assistant_response, user_response = session.step(input_msg)
+            span.complete(output={
+                "assistant": assistant_response.msg.content[:400],
+                "user": user_response.msg.content[:400],
+            })
+        if assistant_response.terminated:
+            break
+        input_msg = assistant_response.msg
+```
+
+## Related
+
+- [Concepts: executions](/concepts/executions)
+- [AutoGen](/integrations/autogen) for multi-agent conversations

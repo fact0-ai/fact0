@@ -1,0 +1,666 @@
+openapi: 3.1.0
+info:
+  title: Fact0 Audit API
+  version: 1.0.0
+  description: |
+    Compliance-grade, tamper-evident audit log API. Events form a per-tenant SHA-256 hash chain.
+
+    **Authentication:** `Authorization: Bearer f0_live_*` or `alk_live_*` API keys (write or read scope).
+
+    **Async ingest (default):** POST ingest endpoints return `202 Accepted` with a `receipt_id`.
+    Poll `GET /v1/receipts/{id}` until `status` is `committed` or `failed`.
+    Force synchronous ingest with header `X-Fact0-Sync: true`  or query `?sync=true`.
+servers:
+  - url: https://api.fact0.io
+    description: Fact0 Cloud
+  - url: http://localhost:8000
+    description: Local development
+security:
+  - apiKey: []
+tags:
+  - name: Ingest
+  - name: Query
+  - name: Verify
+  - name: Export
+  - name: Chain
+  - name: Stream
+  - name: Share
+paths:
+  /v1/events:
+    post:
+      tags: [Ingest]
+      summary: Ingest a single audit event
+      operationId: logEvent
+      security:
+        - apiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SyncHeader'
+        - $ref: '#/components/parameters/SyncQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditEventInput'
+      responses:
+        '202':
+          description: Event queued (async default)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncReceipt'
+        '201':
+          description: Event committed (sync mode)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      tags: [Query]
+      summary: List audit events
+      operationId: listEvents
+      parameters:
+        - name: actor_id
+          in: query
+          schema:
+            type: string
+        - name: actor_type
+          in: query
+          schema:
+            type: string
+            enum: [human, agent, system]
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: resource_id
+          in: query
+          schema:
+            type: string
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [success, failure, error]
+        - name: from
+          in: query
+          description: RFC3339 UTC lower bound
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: RFC3339 UTC upper bound
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 1000
+      responses:
+        '200':
+          description: Paginated event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/events/batch:
+    post:
+      tags: [Ingest]
+      summary: Ingest up to 1000 audit events
+      operationId: logBatch
+      parameters:
+        - $ref: '#/components/parameters/SyncHeader'
+        - $ref: '#/components/parameters/SyncQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  maxItems: 1000
+                  items:
+                    $ref: '#/components/schemas/AuditEventInput'
+      responses:
+        '202':
+          description: Batch queued (async default)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncReceipt'
+        '200':
+          description: Batch committed (sync mode)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/receipts/{id}:
+    get:
+      tags: [Ingest]
+      summary: Poll async ingest receipt status
+      operationId: getReceipt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Receipt status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncReceipt'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/events/{id}:
+    get:
+      tags: [Query]
+      summary: Get a single audit event
+      operationId: getEvent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/events/{id}/verify:
+    get:
+      tags: [Verify]
+      summary: Verify a single event hash
+      operationId: verifyEvent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Single-event verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleVerifyResult'
+  /v1/verify:
+    get:
+      tags: [Verify]
+      summary: Walk the hash chain and verify integrity
+      operationId: verifyChain
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: scan_all
+          in: query
+          description: Return all broken events instead of stopping at the first
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Chain verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResult'
+  /v1/export/pdf:
+    get:
+      tags: [Export]
+      summary: Download SOC 2 audit PDF pack
+      operationId: exportPDF
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /v1/export/evidence-pack:
+    get:
+      tags: [Export]
+      summary: Download ZIP evidence pack (PDF + metadata)
+      operationId: exportEvidencePack
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: ZIP file
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+  /v1/chain/reanchor:
+    post:
+      tags: [Chain]
+      summary: Re-anchor chain from a broken event
+      operationId: reanchorChain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [first_broken_event_id, reason]
+              properties:
+                first_broken_event_id:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Chain re-anchored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReanchorResponse'
+  /v1/chain/reanchor-all:
+    post:
+      tags: [Chain]
+      summary: Re-anchor entire chain
+      operationId: reanchorAll
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Chain re-anchored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReanchorResponse'
+  /v1/events/stream:
+    get:
+      tags: [Stream]
+      summary: Live SSE stream of new audit events
+      operationId: streamEvents
+      responses:
+        '200':
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /v1/share/events:
+    get:
+      tags: [Share]
+      summary: List events via share link token
+      operationId: shareListEvents
+      security:
+        - shareToken: []
+      responses:
+        '200':
+          description: Paginated event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+  /v1/share/verify:
+    get:
+      tags: [Share]
+      summary: Verify chain via share link
+      operationId: shareVerify
+      security:
+        - shareToken: []
+      responses:
+        '200':
+          description: Chain verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResult'
+  /v1/share/export/pdf:
+    get:
+      tags: [Share]
+      summary: Export PDF via share link
+      operationId: shareExportPDF
+      security:
+        - shareToken: []
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /v1/share/export/evidence-pack:
+    get:
+      tags: [Share]
+      summary: Export evidence pack via share link
+      operationId: shareExportEvidencePack
+      security:
+        - shareToken: []
+      responses:
+        '200':
+          description: ZIP file
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: API key prefixed with `alk_live_`. Write scope required for ingest.
+    shareToken:
+      type: http
+      scheme: bearer
+      description: Share link bearer token
+  parameters:
+    SyncHeader:
+      name: X-Fact0-Sync
+      in: header
+      description: Set to `true` for synchronous ingest
+      schema:
+        type: string
+        enum: ['true']
+    SyncQuery:
+      name: sync
+      in: query
+      description: Set to `true` for synchronous ingest
+      schema:
+        type: string
+        enum: ['true']
+  schemas:
+    Actor:
+      type: object
+      required: [id, type]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [human, agent, system]
+        email:
+          type: string
+    Resource:
+      type: object
+      required: [id, type]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+    AuditEventInput:
+      type: object
+      required: [actor, action, resource, outcome]
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        actor:
+          $ref: '#/components/schemas/Actor'
+        action:
+          type: string
+          description: Dot-notation action name (e.g. document.delete)
+        resource:
+          $ref: '#/components/schemas/Resource'
+        outcome:
+          type: string
+          enum: [success, failure, error]
+        metadata:
+          type: object
+          additionalProperties: true
+    AuditEvent:
+      allOf:
+        - $ref: '#/components/schemas/AuditEventInput'
+        - type: object
+          properties:
+            tenant_id:
+              type: string
+            prev_hash:
+              type: string
+            hash:
+              type: string
+            sequence_number:
+              type: integer
+              format: int64
+            created_at:
+              type: string
+              format: date-time
+    BatchResult:
+      type: object
+      properties:
+        accepted:
+          type: integer
+        rejected:
+          type: integer
+        ids:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchError'
+    BatchError:
+      type: object
+      properties:
+        index:
+          type: integer
+        code:
+          type: string
+        message:
+          type: string
+    AsyncReceipt:
+      allOf:
+        - $ref: '#/components/schemas/BatchResult'
+        - type: object
+          properties:
+            receipt_id:
+              type: string
+            status:
+              type: string
+              enum: [queued, committed, failed]
+            error_message:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+            committed_at:
+              type: string
+              format: date-time
+    EventListResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+    VerifyResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        tenant_id:
+          type: string
+        events_checked:
+          type: integer
+        root_hash:
+          type: string
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        first_broken_event_id:
+          type: string
+        reason:
+          type: string
+        broken_count:
+          type: integer
+        all_broken_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrokenEvent'
+    BrokenEvent:
+      type: object
+      properties:
+        event_id:
+          type: string
+        sequence_number:
+          type: integer
+          format: int64
+        timestamp:
+          type: string
+          format: date-time
+        action:
+          type: string
+        actor_id:
+          type: string
+        reason:
+          type: string
+    SingleVerifyResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        event_id:
+          type: string
+        stored_hash:
+          type: string
+        computed_hash:
+          type: string
+    ReanchorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        meta_event_id:
+          type: string
+        meta_event_seq:
+          type: integer
+          format: int64
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          oneOf:
+            - type: string
+            - type: object
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Key lacks required scope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Duplicate event ID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

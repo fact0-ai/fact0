@@ -1,0 +1,50 @@
+---
+title: OpenTelemetry
+description: Bridge OpenTelemetry spans into Fact0 telemetry and export audit events to any OTel collector.
+---
+
+# OpenTelemetry
+
+<Note>
+  A native OTel exporter is on the roadmap. Today you can bridge in either direction with the patterns below.
+</Note>
+
+## OTel → Fact0
+
+If your stack already emits OTel spans, mirror them into Fact0 telemetry inside a span processor:
+
+```python
+from opentelemetry.sdk.trace import SpanProcessor
+import fact0
+
+class Fact0SpanProcessor(SpanProcessor):
+    def __init__(self, client: fact0.Client, agent_id: str):
+        self._client = client
+        self._agent_id = agent_id
+
+    def on_end(self, span):
+        attrs = dict(span.attributes or {})
+        with self._client.telemetry.execution(
+            agent_id=self._agent_id,
+            execution_id=str(span.context.trace_id),
+        ) as ex:
+            with ex.span(span.name, span_type="CUSTOM") as s:
+                s.complete(output=attrs)
+```
+
+## Fact0 → OTel
+
+To forward Fact0 audit events to an OTel collector, subscribe to the SSE stream and emit a span per event:
+
+```python
+for event in client.audit.stream_events():
+    with tracer.start_as_current_span(event["action"]) as span:
+        span.set_attribute("actor.id", event["actor"]["id"])
+        span.set_attribute("resource.id", event["resource"]["id"])
+        span.set_attribute("outcome", event["outcome"])
+```
+
+## Related
+
+- [Audit client](/sdk/python/audit) for SSE streaming
+- [Telemetry client](/sdk/python/telemetry)

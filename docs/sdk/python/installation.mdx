@@ -1,0 +1,47 @@
+---
+title: Installation
+description: Install the fact0 Python package and connect to Fact0 Cloud.
+---
+
+# Python installation
+
+<Steps>
+  <Step title="Create an account">
+    Sign up at [app.fact0.io](https://app.fact0.io) and complete onboarding.
+  </Step>
+  <Step title="Get your API key">
+    Dashboard → **Settings → API Keys → New key**. Choose **write** scope. Copy the key - shown once.
+
+    ```bash
+    export FACT0_API_KEY="alk_live_..."
+    ```
+  </Step>
+  <Step title="Install">
+    ```bash
+    pip install fact0
+    ```
+
+    Requires Python 3.10+.
+  </Step>
+  <Step title="Verify">
+    ```bash
+    python -c "import fact0; print(fact0.__version__)"
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Store API keys in a secrets manager. Raw keys are shown only once at creation.
+</Warning>
+
+The SDK defaults to `https://api.fact0.io`. Override with `FACT0_BASE_URL` only if directed by Fact0 support.
+
+Continue to the [Quickstart](/quickstart).
+
+## Legacy package name
+
+`auditlog-sdk` remains available as a compatibility shim:
+
+```bash
+pip install auditlog-sdk  # re-exports fact0.audit.Client as auditlog.Client
+```

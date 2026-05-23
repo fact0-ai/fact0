@@ -1,0 +1,56 @@
+---
+title: ChatDev
+description: Capture telemetry from ChatDev software-engineering crews.
+---
+
+# ChatDev
+
+<Note>
+  ChatDev is research-leaning. The pattern below wraps a single `ChatChain` run.
+</Note>
+
+## Install
+
+Clone [ChatDev](https://github.com/OpenBMB/ChatDev) and install Fact0 alongside it:
+
+```bash
+pip install fact0
+```
+
+## Pattern
+
+One execution per chain, one span per phase.
+
+```python
+import fact0
+from chatdev.chat_chain import ChatChain
+
+client = fact0.Client(api_key="alk_live_...")
+
+chain = ChatChain(
+    config_path="CompanyConfig/Default/ChatChainConfig.json",
+    config_phase_path="CompanyConfig/Default/PhaseConfig.json",
+    config_role_path="CompanyConfig/Default/RoleConfig.json",
+    task_prompt="Build a tic-tac-toe game",
+    project_name="tictactoe",
+    org_name="fact0-demo",
+    model_type="GPT_4",
+)
+
+with client.telemetry.execution(agent_id="chatdev.company") as ex:
+    original = chain.execute_step
+
+    def traced_step(phase_item):
+        with ex.span(phase_item["phase"], span_type="CUSTOM") as span:
+            result = original(phase_item)
+            span.complete(output={"phase": phase_item["phase"]})
+            return result
+
+    chain.execute_step = traced_step
+    chain.execute_chain()
+```
+
+## Related
+
+- [AutoGen](/integrations/autogen) for general multi-agent chat
+- [CrewAI](/integrations/crewai) for team-style workflows

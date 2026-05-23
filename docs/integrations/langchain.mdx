@@ -1,0 +1,62 @@
+---
+title: LangChain
+description: Auto-instrument LangChain agents with telemetry and audit callbacks.
+---
+
+# LangChain
+
+Fact0 ships a LangChain callback that records every chain, tool, and LLM call as a telemetry span, with optional audit events for sensitive actions.
+
+## Install
+
+```bash
+pip install fact0 langchain
+```
+
+## Quick example
+
+```python
+from langchain_openai import ChatOpenAI
+from fact0.integrations.langchain import Fact0CallbackHandler
+import fact0
+
+client = fact0.Client(api_key="alk_live_...")
+
+handler = Fact0CallbackHandler(
+    client=client,
+    agent_id="research-bot",
+    audit_sensitive_actions=True,
+)
+
+llm = ChatOpenAI(model="gpt-4o", callbacks=[handler])
+response = llm.invoke("Summarize Q3 results")
+```
+
+## What gets captured
+
+| Callback event | Telemetry | Audit (when `audit_sensitive_actions=True`) |
+|----------------|-----------|---------------------------------------------|
+| LLM start/end | `MODEL_INVOCATION` span | - |
+| Tool start/end | `TOOL_CALL` span | `agent.tool.call` |
+| Chain start/end | execution lifecycle | `agent.run.start` / `agent.run.end` |
+
+## Configuration
+
+```python
+handler = Fact0CallbackHandler(
+    client=client,
+    agent_id="support-bot",
+    execution_metadata={"tenant": "acme", "env": "prod"},
+)
+```
+
+| Option | Purpose |
+|--------|---------|
+| `agent_id` | Stable agent identifier shown in the dashboard |
+| `execution_metadata` | Tags applied to every execution from this handler |
+| `audit_sensitive_actions` | Also write `agent.tool.call` audit events |
+
+## Related
+
+- [Telemetry client](/sdk/python/telemetry) for manual span control
+- [LangGraph](/integrations/langgraph) for stateful graph agents

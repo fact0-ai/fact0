@@ -1,0 +1,36 @@
+---
+title: Rate limits
+description: Ingest rate limiting and retry behavior.
+---
+
+# Rate limits
+
+Rate limiting applies to **audit ingest** and **telemetry ingest** routes when enabled in server configuration.
+
+## HTTP 429
+
+When rate limited, the API returns `429 Too Many Requests` with a `Retry-After` header (seconds).
+
+The SDK automatically retries on 429 and 5xx with exponential backoff (default 3 attempts).
+
+## SDK retry policy
+
+| Status | Behavior |
+|--------|----------|
+| 429 | Retry with backoff; respect `Retry-After` |
+| 500, 502, 503, 504 | Retry with backoff |
+| 400, 401, 403, 409 | Fail immediately |
+
+## Batching defaults
+
+| Setting | Default |
+|---------|---------|
+| `batch_max_size` | 100 events |
+| `batch_max_wait_ms` | 500 ms |
+| Max batch on wire | 1000 events |
+
+Batching reduces request volume and helps stay under rate limits.
+
+## Metrics
+
+The platform exposes `fact0_ratelimit_dropped_total` on `/metrics` for observability.

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "aspen",
+  "name": "Fact0",
+  "logo": {
+    "light": "/logo.svg",
+    "dark": "/logo.svg"
+  },
+  "favicon": "/logo.svg",
+  "colors": {
+    "primary": "#6366f1",
+    "light": "#818cf8",
+    "dark": "#4f46e5"
+  },
+  "topbarLinks": [
+    {
+      "name": "Dashboard",
+      "url": "https://app.fact0.io"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get started",
+    "url": "https://docs.fact0.io/quickstart"
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Welcome",
+        "groups": [
+          {
+            "group": "Start here",
+            "pages": [
+              "introduction"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Fact0 Platform",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": [
+              "platform/overview",
+              "quickstart",
+              "changelog"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/audit-vs-telemetry",
+              "concepts/events",
+              "concepts/executions"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/compliance",
+              "guides/security",
+              "guides/rate-limits"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDK",
+        "groups": [
+          {
+            "group": "Python",
+            "pages": [
+              "sdk/python/installation",
+              "sdk/python/audit",
+              "sdk/python/telemetry",
+              "sdk/python/async"
+            ]
+          },
+          {
+            "group": "TypeScript",
+            "pages": [
+              "sdk/typescript/installation"
+            ]
+          },
+          {
+            "group": "Go",
+            "pages": [
+              "sdk/go/installation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Integrations",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "integrations/overview"
+            ]
+          },
+          {
+            "group": "Agent frameworks",
+            "pages": [
+              "integrations/langchain",
+              "integrations/langgraph",
+              "integrations/llamaindex",
+              "integrations/crewai",
+              "integrations/autogen",
+              "integrations/agno",
+              "integrations/camel-ai",
+              "integrations/openai-agents-sdk",
+              "integrations/google-adk",
+              "integrations/mastra",
+              "integrations/vercel-ai-sdk",
+              "integrations/chatdev"
+            ]
+          },
+          {
+            "group": "Web frameworks",
+            "pages": [
+              "integrations/fastapi",
+              "integrations/nextjs",
+              "integrations/express"
+            ]
+          },
+          {
+            "group": "Observability",
+            "pages": [
+              "integrations/opentelemetry"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Audit API",
+            "openapi": "openapi/audit.v1.yaml"
+          },
+          {
+            "group": "Telemetry API",
+            "openapi": "openapi/telemetry.v1.yaml"
+          }
+        ]
+      }
+    ]
+  },
+  "footerSocials": {
+    "github": "https://github.com/fact0-ai/fact0"
+  }
+}

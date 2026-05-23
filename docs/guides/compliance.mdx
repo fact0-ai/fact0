@@ -1,0 +1,53 @@
+---
+title: Compliance guide
+description: For GRC teams and security reviewers - no code required.
+---
+
+# Compliance guide
+
+This page is for **compliance leads, GRC managers, and security reviewers**.
+Engineers should start with the [Quickstart](/quickstart).
+
+## What Fact0 provides
+
+- Immutable, hash-chained audit history per organization
+- Dashboard filtering by actor, action, time range, outcome
+- PDF audit reports and ZIP evidence packs
+- Public verification URLs for external auditors
+- Read-only share links for customer security teams
+
+## Dashboard access
+
+**Cloud:** [app.fact0.io/dashboard/audit](https://app.fact0.io/dashboard/audit)
+
+Filter bar supports actor, actor type, action, resource, outcome, and date range.
+
+## Evidence export
+
+| Export | Endpoint | Format |
+|--------|----------|--------|
+| SOC 2 PDF pack | `GET /v1/export/pdf` | PDF |
+| Full evidence pack | `GET /v1/export/evidence-pack` | ZIP (PDF + metadata) |
+
+Exports are themselves logged as `audit.export` events.
+
+## Chain verification
+
+`GET /v1/verify?from=&to=` walks the SHA-256 chain and reports:
+
+- `valid` - chain intact
+- `events_checked` - count scanned
+- `root_hash` - terminal hash
+- `first_broken_event_id` - if tampering detected
+
+Share verification: `GET /v1/share/verify` with share-link token.
+
+## SOC 2 mapping (informative)
+
+| Control area | Fact0 capability |
+|--------------|----------------------|
+| CC6.8 | Tamper-evident audit trail |
+| CC7.2 | Security event monitoring via audit dashboard |
+| CC9.2 | Exportable evidence for risk assessment |
+
+Consult your auditor for control mapping specific to your environment.

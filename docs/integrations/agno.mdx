@@ -1,0 +1,58 @@
+---
+title: Agno
+description: Telemetry and audit for Agno agents and teams.
+---
+
+# Agno
+
+<Note>
+  Native Agno helpers are on the roadmap. Use the pattern below today.
+</Note>
+
+## Install
+
+```bash
+pip install fact0 agno
+```
+
+## Pattern
+
+Wrap `agent.run()` in an execution and emit one span per tool call.
+
+```python
+import fact0
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+
+client = fact0.Client(api_key="alk_live_...")
+
+agent = Agent(
+    model=OpenAIChat(id="gpt-4o"),
+    tools=[...],
+    markdown=True,
+)
+
+with client.telemetry.execution(agent_id="agno.research") as ex:
+    with ex.span("agent.run", span_type="MODEL_INVOCATION") as span:
+        response = agent.run("Summarize the Q3 earnings call")
+        span.complete(output={"content": response.content[:1000]})
+```
+
+## Wrap a tool
+
+```python
+def make_audited(tool_fn):
+    def wrapped(*args, **kwargs):
+        with client.telemetry.current_execution().span(
+            tool_fn.__name__, span_type="TOOL_CALL"
+        ) as span:
+            result = tool_fn(*args, **kwargs)
+            span.complete(output={"result": str(result)[:500]})
+            return result
+    return wrapped
+```
+
+## Related
+
+- [Telemetry client](/sdk/python/telemetry)
+- [CrewAI](/integrations/crewai) for team workflows

@@ -1,0 +1,100 @@
+---
+title: Audit client
+description: Python AuditClient API reference for compliance-grade audit logging.
+---
+
+# Audit client
+
+```python
+import fact0
+
+client = fact0.Client(api_key="alk_live_...")
+audit = client.audit  # or client.audit directly via convenience methods
+```
+
+## Constructor options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `api_key` | required | Write or read-scoped `alk_live_*` key |
+| `base_url` | `https://api.fact0.io` | API origin |
+| `batch_max_size` | `100` | Max events per flush |
+| `batch_max_wait_ms` | `500` | Max wait before flush |
+| `raise_on_error` | `False` | Raise on transport failure |
+| `dead_letter_path` | `None` | JSONL path for failed batches |
+| `sync` | `False` | Synchronous ingest (`X-Fact0-Sync: true`) |
+| `poll_receipts` | `True` | Poll async receipts after ingest |
+
+Environment variables: `FACT0_API_KEY`, `FACT0_BASE_URL`.
+
+## Write methods
+
+### `log(**fields) -> None`
+
+Validate and enqueue one event. Returns immediately.
+
+### `log_batch(events: list[dict]) -> BatchResult | AsyncReceipt`
+
+Send up to 1000 events. Uses batch endpoint.
+
+### `flush() -> None`
+
+Block until the in-memory buffer is drained.
+
+### `close() -> None`
+
+Stop background flusher and drain. Registered with `atexit`.
+
+## Read methods
+
+### `get_event(event_id: str) -> dict`
+
+`GET /v1/events/{id}`
+
+### `list_events(**filters) -> dict`
+
+`GET /v1/events` - filters: `actor_id`, `actor_type`, `action`, `resource_id`, `outcome`, `from`, `to`, `page`, `page_size`.
+
+### `get_receipt(receipt_id: str) -> dict`
+
+`GET /v1/receipts/{id}`
+
+### `wait_for_receipt(receipt_id: str, timeout_s=30) -> dict`
+
+Poll until `status` is `committed` or `failed`.
+
+## Verify methods
+
+### `verify(from_=None, to=None, scan_all=False) -> dict`
+
+`GET /v1/verify`
+
+### `verify_event(event_id: str) -> dict`
+
+`GET /v1/events/{id}/verify`
+
+## Export methods
+
+### `export_pdf(from_=None, to=None) -> bytes`
+
+`GET /v1/export/pdf`
+
+### `export_evidence_pack(from_=None, to=None) -> bytes`
+
+`GET /v1/export/evidence-pack`
+
+## Stream
+
+### `stream_events() -> Iterator[dict]`
+
+SSE iterator over `GET /v1/events/stream`.
+
+## Error handling
+
+| Exception | When |
+|-----------|------|
+| `fact0.ValidationError` | Invalid event fields at `log()` |
+| `fact0.TransportError` | HTTP failure (only if `raise_on_error=True`) |
+| `fact0.AuditLogError` | Base class |
+
+By default transport errors are logged and optionally written to dead-letter JSONL.

@@ -1,0 +1,64 @@
+---
+title: Mastra
+description: Audit and trace Mastra agents from the TypeScript SDK.
+---
+
+# Mastra
+
+Mastra is TypeScript-native, so it pairs directly with [`@fact0/sdk`](/sdk/typescript/installation).
+
+## Install
+
+```bash
+npm install @fact0/sdk @mastra/core
+```
+
+## Pattern
+
+Wrap agent generation in a telemetry execution and audit high-value tool calls.
+
+```typescript
+import { Fact0Client } from "@fact0/sdk";
+import { Agent } from "@mastra/core/agent";
+import { openai } from "@ai-sdk/openai";
+
+const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+
+const agent = new Agent({
+  name: "support",
+  instructions: "Resolve customer tickets.",
+  model: openai("gpt-4o"),
+  tools: { lookupOrder, issueRefund },
+});
+
+const execution = await lf.telemetry.startExecution({ agentId: "mastra.support" });
+
+const span = execution.startSpan("agent.generate", "MODEL_INVOCATION");
+const response = await agent.generate("Refund order #1024");
+span.complete({ text: response.text });
+
+await execution.end();
+```
+
+## Audit a tool call
+
+```typescript
+async function issueRefund({ orderId }: { orderId: string }) {
+  await lf.audit.log({
+    actor: { id: "agent.support", type: "agent" },
+    action: "order.refund",
+    resource: { id: orderId, type: "order" },
+    outcome: "success",
+  });
+  ...
+}
+```
+
+<Warning>
+  Mastra runs server-side. Never expose `alk_live_*` keys to the browser.
+</Warning>
+
+## Related
+
+- [TypeScript SDK](/sdk/typescript/installation)
+- [Vercel AI SDK](/integrations/vercel-ai-sdk)

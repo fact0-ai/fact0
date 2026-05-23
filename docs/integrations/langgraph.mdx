@@ -1,0 +1,49 @@
+---
+title: LangGraph
+description: Trace stateful, multi-step agent graphs with node-level telemetry spans.
+---
+
+# LangGraph
+
+<Note>
+  Native LangGraph helpers are on the roadmap. Use the manual pattern below today - it works with any `StateGraph`.
+</Note>
+
+## Pattern
+
+Wrap each node with a telemetry span and reuse the same `execution_id` across nodes.
+
+```python
+import fact0
+from langgraph.graph import StateGraph
+
+client = fact0.Client(api_key="alk_live_...")
+
+def with_telemetry(name: str, fn):
+    def wrapped(state):
+        with client.telemetry.execution(
+            agent_id=state.get("agent_id", "graph"),
+            execution_id=state["execution_id"],
+        ) as ex:
+            with ex.span(name, span_type="CUSTOM") as span:
+                result = fn(state)
+                span.complete(output=result)
+                return result
+    return wrapped
+
+graph = StateGraph(dict)
+graph.add_node("plan", with_telemetry("plan", plan_fn))
+graph.add_node("act", with_telemetry("act", act_fn))
+graph.add_node("reflect", with_telemetry("reflect", reflect_fn))
+```
+
+## What gets captured
+
+- One execution per graph run (shared `execution_id`)
+- One `CUSTOM` span per node, with input/output state
+- Use `MODEL_INVOCATION` / `TOOL_CALL` span types inside nodes that call LLMs or external tools
+
+## Related
+
+- [LangChain](/integrations/langchain) - callback-based instrumentation
+- [Telemetry client](/sdk/python/telemetry)

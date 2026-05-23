@@ -1,0 +1,46 @@
+---
+title: TypeScript SDK
+description: Install @fact0/sdk for Node.js and TypeScript agent stacks.
+---
+
+# TypeScript SDK
+
+```bash
+npm install @fact0/sdk
+```
+
+```typescript
+import { Fact0Client } from "@fact0/sdk";
+
+const client = new Fact0Client({
+  apiKey: process.env.FACT0_API_KEY!,
+  baseUrl: process.env.FACT0_BASE_URL ?? "https://api.fact0.io",
+});
+
+await client.audit.log({
+  actor: { id: "agent-1", type: "agent" },
+  action: "document.delete",
+  resource: { id: "doc_1", type: "document" },
+  outcome: "success",
+});
+
+const events = await client.audit.listEvents({ pageSize: 20 });
+```
+
+<Warning>
+  Never expose API keys in browser code. Use `@fact0/sdk` only in server-side contexts (Next.js route handlers, Node agents, workers).
+</Warning>
+
+## Modules
+
+- `client.audit` - audit log read/write/verify/export
+- `client.telemetry` - execution tracing
+
+Types are generated from OpenAPI specs in `openapi/`.
+
+## Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `FACT0_API_KEY` | Bearer API key |
+| `FACT0_BASE_URL` | API origin |

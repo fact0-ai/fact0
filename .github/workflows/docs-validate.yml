@@ -1,0 +1,60 @@
+name: Docs validate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs-validate.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs-validate.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install pyyaml
+
+      - name: Validate OpenAPI YAML parses
+        run: |
+          python3 -c "import yaml, pathlib; [yaml.safe_load(p.read_text()) for p in pathlib.Path('openapi').glob('*.yaml')]"
+
+      - name: Generate llms-full.txt
+        run: bash scripts/generate-llms-full.sh
+
+      - name: Check docs.json
+        run: python3 -c "import json; json.load(open('docs.json'))"
+
+      - name: Check MDX pages exist
+        run: |
+          python3 <<'PY'
+          import json, pathlib
+          nav = json.load(open("docs.json"))["navigation"]
+          pages = []
+          def walk(obj):
+              if isinstance(obj, dict):
+                  for k, v in obj.items():
+                      if k == "pages":
+                          pages.extend(v)
+                      else:
+                          walk(v)
+              elif isinstance(obj, list):
+                  for x in obj:
+                      walk(x)
+          walk(nav)
+          missing = [p for p in pages if not pathlib.Path(f"{p}.mdx").is_file()]
+          if missing:
+              raise SystemExit(f"Missing MDX pages: {missing}")
+          print(f"OK - {len(pages)} pages")
+          PY

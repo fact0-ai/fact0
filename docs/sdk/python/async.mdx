@@ -1,0 +1,59 @@
+---
+title: Async client
+description: asyncio-compatible audit client using httpx.
+---
+
+# Async audit client
+
+For FastAPI, asyncio agents, and other async runtimes:
+
+```python
+import asyncio
+import fact0
+
+async def main():
+    async with fact0.AsyncClient(api_key="alk_live_...") as client:
+        await client.audit.log(
+            actor={"id": "agent-1", "type": "agent"},
+            action="tool.invoke",
+            resource={"id": "run_abc", "type": "agent.execution"},
+            outcome="success",
+        )
+        await client.audit.flush()
+        events = await client.audit.list_events(page_size=10)
+        print(events["total"])
+
+asyncio.run(main())
+```
+
+## Differences from sync client
+
+| Feature | Sync `Client` | `AsyncClient` |
+|---------|---------------|---------------|
+| HTTP library | `requests` | `httpx` |
+| Batching | Background thread | `asyncio` task |
+| Context manager | `close()` / `atexit` | `async with` |
+| Read/verify/export | ✓ | ✓ |
+
+Telemetry methods are also available on `AsyncClient.telemetry`.
+
+## FastAPI lifespan pattern
+
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+import fact0
+
+audit_client: fact0.AsyncClient | None = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global audit_client
+    audit_client = fact0.AsyncClient(api_key="...")
+    yield
+    await audit_client.close()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+See the [FastAPI integration](/integrations/fastapi) for middleware setup.

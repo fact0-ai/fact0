@@ -1,0 +1,26 @@
+name: SDK Go
+
+on:
+  push:
+    tags: ["sdk/go/v*"]
+    paths:
+      - "sdk/go/**"
+      - ".github/workflows/sdk-go.yml"
+  pull_request:
+    paths:
+      - "sdk/go/**"
+      - ".github/workflows/sdk-go.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sdk/go/go.mod
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...

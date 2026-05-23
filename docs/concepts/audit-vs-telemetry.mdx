@@ -1,0 +1,54 @@
+---
+title: Audit vs telemetry
+description: Two pipelines - compliance ledger and execution observability.
+---
+
+# Audit vs telemetry
+
+Fact0 has **two parallel pipelines**:
+
+```
+Audit log   →  "Did it happen? Who? When?"     (compliance)
+Telemetry   →  "How did it happen? Why?"       (debugging)
+```
+
+For high-value events (LLM spend, customer data access, refunds) log to **both**.
+
+## Audit log
+
+- **Endpoints:** `/v1/events`, `/v1/events/batch`
+- **Storage:** `audit_events` - SHA-256 hash chain per tenant
+- **Auth:** `alk_live_*` API keys (read/write scopes)
+- **Use for:** SOC 2 evidence, tamper detection, regulator exports
+
+## Execution telemetry
+
+- **Endpoints:** `/api/v1/executions/*`
+- **Storage:** `executions`, `spans`, `execution_events`
+- **Auth:** Unauthenticated locally (API keys planned)
+- **Use for:** DAG visualization, replay, debugging non-deterministic agents
+
+## Span kinds (telemetry)
+
+| `span_type` | Example |
+|-------------|---------|
+| `TOOL_CALL` | `web_search`, `db.query` |
+| `MODEL_INVOCATION` | `gpt-4o`, `claude-sonnet` |
+| `STATE_MUTATION` | cache/DB read-write |
+| `HUMAN_APPROVAL` | manager sign-off |
+| `POLICY_EVALUATION` | guardrail / OPA check |
+| `CUSTOM` | routing, planning |
+
+## Audit event shape
+
+```json
+{
+  "actor": { "id": "...", "type": "human|agent|system" },
+  "action": "resource.verb",
+  "resource": { "id": "...", "type": "..." },
+  "outcome": "success|failure|error",
+  "metadata": {}
+}
+```
+
+See [Event schema](/concepts/events) and [Executions](/concepts/executions).

@@ -1,0 +1,453 @@
+openapi: 3.1.0
+info:
+  title: Fact0 Execution Telemetry API
+  version: 1.0.0
+  description: |
+    Execution tracing API for AI agent observability - executions, spans, events, DAG, and replay.
+
+    **Note:** Telemetry routes are currently unauthenticated for local/demo use.
+    API-key authentication will be added in a future release.
+servers:
+  - url: https://api.fact0.io
+    description: Fact0 Cloud
+  - url: http://localhost:8000
+    description: Local development
+tags:
+  - name: Ingest
+  - name: Query
+  - name: Replay
+paths:
+  /api/v1/executions:
+    post:
+      tags: [Ingest]
+      summary: Start a new execution trace
+      operationId: startExecution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartExecutionRequest"
+      responses:
+        "201":
+          description: Execution created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    get:
+      tags: [Query]
+      summary: List executions
+      operationId: listExecutions
+      parameters:
+        - name: agent_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [RUNNING, COMPLETED, FAILED, CANCELLED]
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Execution list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionListResponse"
+  /api/v1/executions/{executionID}/spans:
+    post:
+      tags: [Ingest]
+      summary: Ingest spans for an execution
+      operationId: ingestSpans
+      parameters:
+        - $ref: "#/components/parameters/ExecutionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [spans]
+              properties:
+                spans:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Span"
+      responses:
+        "200":
+          description: Spans accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestResponse"
+    get:
+      tags: [Query]
+      summary: List spans for an execution
+      operationId: getSpans
+      parameters:
+        - $ref: "#/components/parameters/ExecutionID"
+      responses:
+        "200":
+          description: Span list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spans:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Span"
+  /api/v1/executions/{executionID}/events:
+    post:
+      tags: [Ingest]
+      summary: Ingest execution events
+      operationId: ingestEvents
+      parameters:
+        - $ref: "#/components/parameters/ExecutionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ExecutionEvent"
+      responses:
+        "200":
+          description: Events accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestResponse"
+  /api/v1/executions/{executionID}/end:
+    put:
+      tags: [Ingest]
+      summary: End an execution
+      operationId: endExecution
+      parameters:
+        - $ref: "#/components/parameters/ExecutionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [RUNNING, COMPLETED, FAILED, CANCELLED]
+      responses:
+        "200":
+          description: Execution ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+  /api/v1/executions/{executionID}:
+    get:
+      tags: [Query]
+      summary: Get execution detail
+      operationId: getExecution
+      parameters:
+        - $ref: "#/components/parameters/ExecutionID"
+      responses:
+        "200":
+          description: Execution detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/executions/{executionID}/dag:
+    get:
+      tags: [Query]
+      summary: Get execution DAG
+      operationId: getDAG
+      parameters:
+        - $ref: "#/components/parameters/ExecutionID"
+      responses:
+        "200":
+          description: DAG nodes and edges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DAGResponse"
+  /api/v1/executions/{executionID}/replay:
+    get:
+      tags: [Replay]
+      summary: Replay execution frames
+      operationId: replayExecution
+      parameters:
+        - $ref: "#/components/parameters/ExecutionID"
+        - name: from_sequence
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: to_sequence
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Replay frames
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplayResponse"
+  /api/v1/spans/{spanID}:
+    get:
+      tags: [Query]
+      summary: Get span detail with events
+      operationId: getSpan
+      parameters:
+        - name: spanID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Span and events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  span:
+                    $ref: "#/components/schemas/Span"
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ExecutionEvent"
+  /api/v1/spans/{spanID}/events:
+    get:
+      tags: [Query]
+      summary: Get events for a span
+      operationId: getSpanEvents
+      parameters:
+        - name: spanID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Span events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ExecutionEvent"
+components:
+  parameters:
+    ExecutionID:
+      name: executionID
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    StartExecutionRequest:
+      type: object
+      required: [agent_id]
+      properties:
+        agent_id:
+          type: string
+        agent_name:
+          type: string
+        trigger:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        idempotency_key:
+          type: string
+    Execution:
+      type: object
+      properties:
+        id:
+          type: string
+        agent_id:
+          type: string
+        agent_name:
+          type: string
+        status:
+          type: string
+          enum: [RUNNING, COMPLETED, FAILED, CANCELLED]
+        root_span_id:
+          type: string
+        trigger:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+    Span:
+      type: object
+      properties:
+        id:
+          type: string
+        execution_id:
+          type: string
+        parent_span_id:
+          type: string
+        caused_by_span_ids:
+          type: array
+          items:
+            type: string
+        span_type:
+          type: string
+          enum:
+            - TOOL_CALL
+            - MODEL_INVOCATION
+            - STATE_MUTATION
+            - HUMAN_APPROVAL
+            - POLICY_EVALUATION
+            - CUSTOM
+        name:
+          type: string
+        status:
+          type: string
+          enum: [RUNNING, COMPLETED, FAILED, CANCELLED]
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+    ExecutionEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        execution_id:
+          type: string
+        span_id:
+          type: string
+        sequence_number:
+          type: integer
+          format: int64
+        event_type:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+    IngestResponse:
+      type: object
+      properties:
+        accepted_count:
+          type: integer
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/IngestError"
+    IngestError:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+    ExecutionListResponse:
+      type: object
+      properties:
+        executions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Execution"
+        total:
+          type: integer
+    DAGResponse:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        edges:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    ReplayResponse:
+      type: object
+      properties:
+        execution_id:
+          type: string
+        frames:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          oneOf:
+            - type: string
+            - type: object
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

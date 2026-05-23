@@ -1,0 +1,48 @@
+name: SDK TypeScript
+
+on:
+  push:
+    tags: ["sdk/typescript/v*"]
+    paths:
+      - "sdk/typescript/**"
+      - ".github/workflows/sdk-typescript.yml"
+  pull_request:
+    paths:
+      - "sdk/typescript/**"
+      - ".github/workflows/sdk-typescript.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+        continue-on-error: true
+      - run: npm install
+      - run: npm run build
+      - run: npm test
+
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/sdk/typescript/v')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+      - run: npm install
+      - run: npm run build
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,48 @@
+---
+title: OpenAI Agents SDK
+description: Record tool calls, handoffs, and final outputs from the OpenAI Agents SDK.
+---
+
+# OpenAI Agents SDK
+
+<Note>
+  A dedicated wrapper is on the roadmap. The pattern below uses the public hooks available today.
+</Note>
+
+## Pattern
+
+Run the agent inside a telemetry execution and add spans around each tool call.
+
+```python
+import fact0
+from agents import Agent, Runner
+
+client = fact0.Client(api_key="alk_live_...")
+
+agent = Agent(name="support", instructions="...", tools=[...])
+
+with client.telemetry.execution(agent_id="support-bot") as ex:
+    with ex.span("agent.run", span_type="MODEL_INVOCATION") as span:
+        result = Runner.run_sync(agent, input="Refund order #123")
+        span.complete(output={"final": result.final_output})
+```
+
+## Tool call detail
+
+Subclass or wrap each `function_tool` to push a `TOOL_CALL` span:
+
+```python
+@function_tool
+def lookup_order(order_id: str):
+    with client.telemetry.current_execution().span(
+        "lookup_order", span_type="TOOL_CALL"
+    ) as span:
+        order = db.get(order_id)
+        span.complete(output={"status": order.status})
+        return order
+```
+
+## Related
+
+- [Telemetry client](/sdk/python/telemetry)
+- [LangGraph](/integrations/langgraph) for graph-based agents

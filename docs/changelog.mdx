@@ -1,0 +1,34 @@
+---
+title: Changelog
+description: SDK and API release notes.
+---
+
+# Changelog
+
+## v1.0.0 - 2026-05-21
+
+### SDK
+
+- **`fact0` Python package** - unified client with `audit` and `telemetry` modules
+- Full audit surface: read, verify, export, receipts, SSE stream
+- Async audit client via `httpx`
+- **`auditlog-sdk` compatibility shim** - `import auditlog` continues to work
+
+### TypeScript & Go
+
+- **`@fact0/sdk`** - audit + telemetry clients for Node.js
+- **`github.com/fact0-ai/fact0-go`** - native Go client
+
+### Documentation
+
+- Migrated to [Mintlify](https://mintlify.com) at docs.fact0.io
+- OpenAPI 3.1 specs for Audit and Telemetry APIs with interactive playground
+
+### Breaking changes from v0.1
+
+- Preferred import: `import fact0` (was `import auditlog`)
+- Environment variables: `FACT0_API_KEY` (was `AUDITLOG_API_KEY`)
+
+## v0.1.0
+
+- Initial `auditlog-sdk` - write-only audit client with background batching

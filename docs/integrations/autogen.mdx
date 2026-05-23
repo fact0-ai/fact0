@@ -1,0 +1,62 @@
+---
+title: AutoGen
+description: Trace multi-agent AutoGen conversations and audit tool calls.
+---
+
+# AutoGen
+
+<Note>
+  Native AutoGen helpers are on the roadmap. The pattern below works today with `pyautogen >= 0.2`.
+</Note>
+
+## Install
+
+```bash
+pip install fact0 pyautogen
+```
+
+## Pattern
+
+One execution per chat, one span per agent turn.
+
+```python
+import fact0
+from autogen import ConversableAgent, GroupChat, GroupChatManager
+
+client = fact0.Client(api_key="alk_live_...")
+
+planner = ConversableAgent("planner", llm_config={"model": "gpt-4o"})
+coder = ConversableAgent("coder",   llm_config={"model": "gpt-4o"})
+
+group = GroupChat(agents=[planner, coder], messages=[], max_round=10)
+manager = GroupChatManager(groupchat=group, llm_config={"model": "gpt-4o"})
+
+with client.telemetry.execution(agent_id="autogen.refactor") as ex:
+    def hook(recipient, messages, sender, config):
+        with ex.span(f"{sender.name}->{recipient.name}", span_type="MODEL_INVOCATION") as span:
+            span.complete(output={"last": messages[-1]["content"][:500]})
+        return False, None  # continue normal flow
+
+    for a in [planner, coder, manager]:
+        a.register_reply([ConversableAgent, None], hook, position=0)
+
+    planner.initiate_chat(manager, message="Refactor invoice service")
+```
+
+## Audit tool calls
+
+```python
+def on_tool_call(name: str, args: dict):
+    client.audit.log(
+        actor={"id": "agent.coder", "type": "agent"},
+        action=f"tool.{name}",
+        resource={"id": args.get("target", "n/a"), "type": "code"},
+        outcome="success",
+        metadata=args,
+    )
+```
+
+## Related
+
+- [Concepts: executions](/concepts/executions)
+- [LangGraph](/integrations/langgraph) for graph-shaped multi-agent flows

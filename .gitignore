@@ -1,0 +1,22 @@
+# Python SDK
+sdk/python/build/
+sdk/python/dist/
+sdk/python/**/*.egg-info/
+sdk/python/.pytest_cache/
+sdk/python/**/.pytest_cache/
+sdk/python/.venv/
+sdk/python/**/__pycache__/
+sdk/python/**/*.py[cod]
+sdk/python/**/*$py.class
+
+# TypeScript SDK - dist built in CI
+sdk/typescript/node_modules/
+sdk/typescript/dist/
+
+# Docs generated output
+docs/llms-full.txt
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

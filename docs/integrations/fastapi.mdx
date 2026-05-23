@@ -1,0 +1,66 @@
+---
+title: FastAPI
+description: Audit logging middleware and lifespan hooks for FastAPI services.
+---
+
+# FastAPI
+
+## Install
+
+```bash
+pip install fact0 fastapi
+```
+
+## Async client with lifespan
+
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+import fact0
+
+audit: fact0.AsyncClient | None = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global audit
+    audit = fact0.AsyncClient(api_key="alk_live_...")
+    yield
+    await audit.close()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+## Request-level audit middleware
+
+```python
+from fact0.integrations.fastapi import AuditMiddleware
+
+app.add_middleware(
+    AuditMiddleware,
+    client_factory=lambda: audit,
+    action_prefix="api",
+)
+```
+
+The middleware logs `api.request` on each request with method, path, status, and duration in metadata.
+
+## Manual instrumentation
+
+```python
+@app.post("/approve/{invoice_id}")
+async def approve(invoice_id: str, user: User = Depends(get_user)):
+    await audit.audit.log(
+        actor={"id": user.id, "type": "human"},
+        action="invoice.approve",
+        resource={"id": invoice_id, "type": "invoice"},
+        outcome="success",
+    )
+    ...
+```
+
+Use the same `resource.id` (often an execution ID) across all steps of one agent run for correlated filtering.
+
+## Related
+
+- [Async client](/sdk/python/async) - batching, drain semantics, retries
+- [Audit client reference](/sdk/python/audit)

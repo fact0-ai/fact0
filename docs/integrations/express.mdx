@@ -1,0 +1,54 @@
+---
+title: Express
+description: Drop-in audit logging for Express and Node.js HTTP services.
+---
+
+# Express
+
+## Install
+
+```bash
+npm install @fact0/sdk
+```
+
+## Audit middleware
+
+```typescript
+import express from "express";
+import { Fact0Client } from "@fact0/sdk";
+
+const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+const app = express();
+
+app.use(async (req, res, next) => {
+  res.on("finish", () => {
+    void lf.audit.log({
+      actor: { id: (req as any).user?.id ?? "anonymous", type: "human" },
+      action: `api.${req.method.toLowerCase()}`,
+      resource: { id: req.path, type: "endpoint" },
+      outcome: res.statusCode < 400 ? "success" : "failure",
+      metadata: { status: res.statusCode },
+    });
+  });
+  next();
+});
+```
+
+## Manual instrumentation
+
+```typescript
+app.post("/refund/:orderId", async (req, res) => {
+  await lf.audit.log({
+    actor: { id: req.user.id, type: "human" },
+    action: "order.refund",
+    resource: { id: req.params.orderId, type: "order" },
+    outcome: "success",
+  });
+  res.json({ ok: true });
+});
+```
+
+## Related
+
+- [TypeScript SDK](/sdk/typescript/installation)
+- [Next.js](/integrations/nextjs)

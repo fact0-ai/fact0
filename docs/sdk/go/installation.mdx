@@ -1,0 +1,46 @@
+---
+title: Go SDK
+description: Install fact0-go for native Go services and sidecars.
+---
+
+# Go SDK
+
+```bash
+go get github.com/fact0-ai/fact0-go
+```
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+
+    fact0 "github.com/fact0-ai/fact0-go"
+)
+
+func main() {
+    client := fact0.NewClient(fact0.Config{
+        APIKey:  os.Getenv("FACT0_API_KEY"),
+        BaseURL: os.Getenv("FACT0_BASE_URL"), // defaults to https://api.fact0.io
+    })
+
+    err := client.Audit.Log(context.Background(), fact0.AuditEventInput{
+        Actor:    fact0.Actor{ID: "svc-1", Type: "system"},
+        Action:   "config.update",
+        Resource: fact0.Resource{ID: "cfg_1", Type: "config"},
+        Outcome:  "success",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+## Packages
+
+- `fact0.AuditClient` - `/v1/*` audit surface
+- `fact0.TelemetryClient` - `/api/v1/*` execution tracing
+
+Both support context cancellation, retries on 429/5xx, and configurable timeouts.

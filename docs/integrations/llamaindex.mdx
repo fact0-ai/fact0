@@ -1,0 +1,42 @@
+---
+title: LlamaIndex
+description: Capture retrieval and LLM telemetry from LlamaIndex query engines.
+---
+
+# LlamaIndex
+
+<Note>
+  Native callback support is on the roadmap. The pattern below works today with any LlamaIndex query engine.
+</Note>
+
+## Pattern
+
+Wrap query engine calls in a telemetry execution. Use `MODEL_INVOCATION` for the LLM call and `TOOL_CALL` for retrievers.
+
+```python
+import fact0
+from llama_index.core import VectorStoreIndex
+
+client = fact0.Client(api_key="alk_live_...")
+index = VectorStoreIndex.from_documents(documents)
+query_engine = index.as_query_engine()
+
+with client.telemetry.execution(agent_id="rag-bot") as ex:
+    with ex.span("retrieve", span_type="TOOL_CALL") as span:
+        nodes = query_engine.retrieve("What is Fact0?")
+        span.complete(output={"hits": len(nodes)})
+
+    with ex.span("synthesize", span_type="MODEL_INVOCATION") as span:
+        response = query_engine.query("What is Fact0?")
+        span.complete(output={"answer": str(response)})
+```
+
+## Coming soon
+
+- `LlamaIndexCallbackHandler` for automatic instrumentation
+- Per-node retrieval metadata (chunks, scores)
+
+## Related
+
+- [Telemetry client](/sdk/python/telemetry)
+- [LangChain](/integrations/langchain)

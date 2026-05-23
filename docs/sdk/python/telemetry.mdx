@@ -1,0 +1,64 @@
+---
+title: Telemetry client
+description: Python TelemetryClient for execution tracing, spans, and replay.
+---
+
+# Telemetry client
+
+```python
+import fact0
+
+client = fact0.Client(api_key=os.environ["FACT0_API_KEY"])
+tel = client.telemetry
+```
+
+<Note>
+  Telemetry routes are currently **unauthenticated** for local/demo use. API-key auth is planned.
+</Note>
+
+## Start an execution
+
+```python
+exec = tel.start_execution(
+    agent_id="research-bot",
+    agent_name="Research Bot",
+    trigger="user_query",
+    metadata={"user_id": "u_123"},
+)
+print(exec["id"])
+```
+
+## Context managers (recommended)
+
+```python
+with client.telemetry.execution(agent_id="research-bot") as ex:
+    with ex.span("tool.search", span_type="TOOL_CALL") as span:
+        span.log_event("query", {"q": "fact0"})
+        span.complete(output={"hits": 5})
+# execution auto-ended with COMPLETED status
+```
+
+### Span types
+
+`TOOL_CALL`, `MODEL_INVOCATION`, `STATE_MUTATION`, `HUMAN_APPROVAL`, `POLICY_EVALUATION`, `CUSTOM`
+
+## Read methods
+
+| Method | REST |
+|--------|------|
+| `list_executions(agent_id=, status=, page_size=, offset=)` | `GET /api/v1/executions` |
+| `get_execution(id)` | `GET /api/v1/executions/{id}` |
+| `get_spans(execution_id)` | `GET /api/v1/executions/{id}/spans` |
+| `get_dag(execution_id)` | `GET /api/v1/executions/{id}/dag` |
+| `replay(execution_id, from_sequence=0, to_sequence=0)` | `GET /api/v1/executions/{id}/replay` |
+| `get_span(span_id)` | `GET /api/v1/spans/{id}` |
+
+## Low-level ingest
+
+| Method | REST |
+|--------|------|
+| `ingest_spans(execution_id, spans)` | `POST /api/v1/executions/{id}/spans` |
+| `ingest_events(execution_id, events)` | `POST /api/v1/executions/{id}/events` |
+| `end_execution(execution_id, status)` | `PUT /api/v1/executions/{id}/end` |
+
+Status values: `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.

@@ -1,0 +1,38 @@
+# Fact0 Documentation
+
+> Tamper-evident audit logs and execution telemetry for AI agents.
+
+## Quick links
+
+- [Welcome](/introduction)
+- [Fact0 Platform](/platform/overview)
+- [Quickstart](/quickstart)
+- [Audit vs telemetry](/concepts/audit-vs-telemetry)
+
+## SDKs
+
+- Python: `pip install fact0` - [docs](/sdk/python/installation)
+- TypeScript: `npm install @fact0/sdk` - [docs](/sdk/typescript/installation)
+- Go: `go get github.com/fact0-ai/fact0-go` - [docs](/sdk/go/installation)
+
+## Integrations
+
+- [Overview](/integrations/overview)
+- Agent frameworks: [LangChain](/integrations/langchain) · [LangGraph](/integrations/langgraph) · [LlamaIndex](/integrations/llamaindex) · [CrewAI](/integrations/crewai) · [AutoGen](/integrations/autogen) · [Agno](/integrations/agno) · [CAMEL AI](/integrations/camel-ai) · [OpenAI Agents SDK](/integrations/openai-agents-sdk) · [Google ADK](/integrations/google-adk) · [Mastra](/integrations/mastra) · [Vercel AI SDK](/integrations/vercel-ai-sdk) · [ChatDev](/integrations/chatdev)
+- Web frameworks: [FastAPI](/integrations/fastapi) · [Next.js](/integrations/nextjs) · [Express](/integrations/express)
+- Observability: [OpenTelemetry](/integrations/opentelemetry)
+
+## Guides
+
+- [Compliance](/guides/compliance)
+- [Security](/guides/security)
+- [Rate limits](/guides/rate-limits)
+
+## API reference
+
+- [Audit API](/api-reference/audit-api)
+- [Telemetry API](/api-reference/telemetry-api)
+
+## LLM integration
+
+For AI coding assistants, use this docs site or `/llms-full.txt` for a machine-readable reference.

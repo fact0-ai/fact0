@@ -1,0 +1,55 @@
+---
+title: Vercel AI SDK
+description: Audit AI route handlers and stream LLM telemetry from Vercel AI SDK apps.
+---
+
+# Vercel AI SDK
+
+Use `@fact0/sdk` from any Next.js route handler or Vercel Function.
+
+## Install
+
+```bash
+npm install @fact0/sdk
+```
+
+## Server-side audit + telemetry
+
+```typescript
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { Fact0Client } from "@fact0/sdk";
+
+const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+
+export async function POST(req: Request) {
+  const { prompt, userId } = await req.json();
+
+  await lf.audit.log({
+    actor: { id: userId, type: "human" },
+    action: "chat.message.send",
+    resource: { id: prompt.id, type: "message" },
+    outcome: "success",
+  });
+
+  const result = await streamText({
+    model: openai("gpt-4o"),
+    prompt: prompt.text,
+  });
+
+  return result.toAIStreamResponse();
+}
+```
+
+## Stream telemetry
+
+Wrap `streamText` calls in a telemetry execution to record latency and token counts.
+
+<Warning>
+  Never expose `alk_live_*` keys in client code. `@fact0/sdk` is server-only.
+</Warning>
+
+## Related
+
+- [TypeScript SDK](/sdk/typescript/installation)
+- [Next.js](/integrations/nextjs)
