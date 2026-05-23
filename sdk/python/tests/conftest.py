@@ -16,23 +16,24 @@ class _CapturingHandler(BaseHTTPRequestHandler):
 
     server: "_MockServer"  # type: ignore[assignment]
 
-    def do_POST(self) -> None:  # noqa: N802 (stdlib API)
+    def _handle(self, method: str) -> None:
         length = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(length)
+        body = self.rfile.read(length) if length else b""
         try:
-            payload = json.loads(body)
+            payload = json.loads(body) if body else None
         except ValueError:
             payload = None
 
         record = {
+            "method": method,
             "path": self.path,
             "auth": self.headers.get("Authorization"),
+            "sync": self.headers.get("X-Fact0-Sync"),
             "json": payload,
         }
         with self.server.lock:
             self.server.received.append(record)
 
-        # Optional artificial delay to simulate slow upstream.
         if self.server.delay_s:
             time.sleep(self.server.delay_s)
 
@@ -42,6 +43,15 @@ class _CapturingHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body_bytes)))
         self.end_headers()
         self.wfile.write(body_bytes)
+
+    def do_GET(self) -> None:  # noqa: N802 (stdlib API)
+        self._handle("GET")
+
+    def do_POST(self) -> None:  # noqa: N802 (stdlib API)
+        self._handle("POST")
+
+    def do_PUT(self) -> None:  # noqa: N802 (stdlib API)
+        self._handle("PUT")
 
     def log_message(self, *args: Any, **kwargs: Any) -> None:
         # Silence the test server.
