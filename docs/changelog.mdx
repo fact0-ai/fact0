@@ -5,6 +5,27 @@ description: SDK and API release notes.
 
 # Changelog
 
+## v1.1.0 - 2026-05-24
+
+### OpenTelemetry Native
+
+Fact0 is now **OpenTelemetry native**. Send traces from any OTel SDK or Collector with zero code changes.
+
+- **OTLP/gRPC receiver** on port `:4317` (IANA-registered default)
+- **OTLP/HTTP receiver** at `/v1/otlp/v1/traces`
+- **Smart span classification**: GenAI semantic conventions (`gen_ai.*`) → `MODEL_INVOCATION`, tool attributes → `TOOL_CALL`, database/HTTP spans auto-classified
+- **GenAI enrichment**: Prompt/completion extraction from span events, token usage, temperature, and model metadata
+- **Exception enrichment**: Full stack traces from OTel exception events
+- API key authentication via `Authorization` header or OTel `headers` config
+
+### Environment variables
+
+- `FACT0_OTLP_HTTP_ENABLED` - enable OTLP/HTTP receiver (default: `false`)
+- `FACT0_OTLP_GRPC_ENABLED` - enable OTLP/gRPC receiver (default: `false`)
+- `FACT0_OTLP_GRPC_PORT` - gRPC listener port (default: `4317`)
+
+---
+
 ## v1.0.0 - 2026-05-23
 
 ### Python (`fact0-sdk`)

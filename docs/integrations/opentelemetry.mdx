@@ -1,50 +1,146 @@
 ---
 title: OpenTelemetry
-description: Bridge OpenTelemetry spans into Fact0 telemetry and export audit events to any OTel collector.
+description: Send traces from any OTel SDK or Collector to Fact0 with zero code changes — just point your OTLP endpoint.
 ---
 
 # OpenTelemetry
 
-<Note>
-  A native OTel exporter is on the roadmap. Today you can bridge in either direction with the patterns below.
-</Note>
+Fact0 is **OpenTelemetry native**. Any application that exports OTLP traces can send them to Fact0 with zero code changes — just set two environment variables.
 
-## OTel → Fact0
+<Info>
+  Fact0 accepts both OTLP/gRPC (port 4317) and OTLP/HTTP. GenAI semantic conventions are automatically enriched into structured model invocation details.
+</Info>
 
-If your stack already emits OTel spans, mirror them into Fact0 telemetry inside a span processor:
+## Quick start
 
-```python
-from opentelemetry.sdk.trace import SpanProcessor
-import fact0
+### 1. Configure your OTel SDK
 
-class Fact0SpanProcessor(SpanProcessor):
-    def __init__(self, client: fact0.Client, agent_id: str):
-        self._client = client
-        self._agent_id = agent_id
+Set the OTLP exporter to point at your Fact0 API:
 
-    def on_end(self, span):
-        attrs = dict(span.attributes or {})
-        with self._client.telemetry.execution(
-            agent_id=self._agent_id,
-            execution_id=str(span.context.trace_id),
-        ) as ex:
-            with ex.span(span.name, span_type="CUSTOM") as s:
-                s.complete(output=attrs)
+```bash
+# OTLP/gRPC (default for most SDKs)
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://api.fact0.io:4317
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer f0_live_xxxx"
+
+# Or OTLP/HTTP
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://api.fact0.io/v1/otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer f0_live_xxxx"
 ```
 
-## Fact0 → OTel
+That's it. Your existing OTel instrumentation starts flowing into Fact0 immediately.
 
-To forward Fact0 audit events to an OTel collector, subscribe to the SSE stream and emit a span per event:
+### 2. Python example
 
 ```python
-for event in client.audit.stream_events():
-    with tracer.start_as_current_span(event["action"]) as span:
-        span.set_attribute("actor.id", event["actor"]["id"])
-        span.set_attribute("resource.id", event["resource"]["id"])
-        span.set_attribute("outcome", event["outcome"])
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+# Standard OTel setup - no Fact0-specific code
+provider = TracerProvider()
+exporter = OTLPSpanExporter(
+    endpoint="https://api.fact0.io:4317",
+    headers={"authorization": "Bearer f0_live_xxxx"},
+)
+provider.add_span_processor(BatchSpanExporter(exporter))
+trace.set_tracer_provider(provider)
+
+tracer = trace.get_tracer("my-agent")
+
+with tracer.start_as_current_span("process-request") as span:
+    span.set_attribute("gen_ai.system", "openai")
+    span.set_attribute("gen_ai.request.model", "gpt-4")
+    # ... your agent logic ...
+    span.set_attribute("gen_ai.usage.prompt_tokens", 150)
+    span.set_attribute("gen_ai.usage.completion_tokens", 200)
 ```
+
+### 3. OTel Collector config
+
+If you run an OTel Collector, add Fact0 as an exporter:
+
+```yaml
+exporters:
+  otlp/fact0:
+    endpoint: "api.fact0.io:4317"
+    headers:
+      authorization: "Bearer f0_live_xxxx"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/fact0]
+```
+
+## How it works
+
+### Automatic translation
+
+Fact0 translates OTel traces into its native domain model:
+
+| OTel concept | Fact0 concept |
+|:---|:---|
+| Trace (traceId) | Execution |
+| Span | Span |
+| `service.name` resource attribute | Agent ID |
+| Span status | Execution / span status |
+
+### Smart span classification
+
+Fact0 automatically classifies spans based on OTel semantic conventions:
+
+| OTel attributes | Fact0 span type |
+|:---|:---|
+| `gen_ai.system`, `gen_ai.request.model` | `MODEL_INVOCATION` |
+| `tool.name` | `TOOL_CALL` |
+| `db.system`, `db.statement` | `TOOL_CALL` (database) |
+| `http.request.method`, `url.full` | `TOOL_CALL` (HTTP) |
+| `fact0.span_type` (explicit) | Whatever you set |
+
+### GenAI enrichment
+
+When GenAI semantic conventions are present, Fact0 extracts structured details:
+
+- **Model info**: `gen_ai.system`, `gen_ai.request.model`
+- **Token usage**: `gen_ai.usage.prompt_tokens`, `gen_ai.usage.completion_tokens`
+- **Parameters**: `gen_ai.request.temperature`, `gen_ai.request.max_tokens`
+- **Prompts/completions**: Extracted from `gen_ai.content.prompt` and `gen_ai.content.completion` span events
+
+### Exception enrichment
+
+OTel exception events (`exception.type`, `exception.message`, `exception.stacktrace`) are automatically extracted into Fact0's error detail panel with full stack traces.
+
+## Custom span types
+
+You can explicitly set the Fact0 span type using a custom attribute:
+
+```python
+span.set_attribute("fact0.span_type", "HUMAN_APPROVAL")
+```
+
+Supported values: `TOOL_CALL`, `MODEL_INVOCATION`, `STATE_MUTATION`, `HUMAN_APPROVAL`, `POLICY_EVALUATION`.
+
+## OTel vs Fact0 SDK
+
+| Capability | OTel | Fact0 SDK |
+|:---|:---|:---|
+| Basic trace ingestion | ✅ | ✅ |
+| GenAI enrichment | ✅ | ✅ |
+| Tamper-evident hash chains | ❌ | ✅ |
+| Human-in-the-loop approvals | ❌ | ✅ |
+| Policy evaluation results | ❌ | ✅ |
+| SOC 2 evidence export | ❌ | ✅ |
+| Execution replay | ❌ | ✅ |
+
+<Tip>
+  **Start with OTel in 30 seconds.** Graduate to the Fact0 SDK when you need governance-grade audit trails that OTel can't express.
+</Tip>
 
 ## Related
 
-- [Audit client](/sdk/python/audit) for SSE streaming
-- [Telemetry client](/sdk/python/telemetry)
+- [Python SDK](/sdk/python/installation) for governance-grade features
+- [Audit client](/sdk/python/audit) for tamper-evident event logging
+- [Telemetry client](/sdk/python/telemetry) for execution tracing
