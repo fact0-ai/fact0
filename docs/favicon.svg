@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Fact0">
+  <style>
+    .ring-strong {
+      fill: none;
+      stroke: #09090b;
+      stroke-width: 2;
+    }
+    .dot-weak {
+      fill: #09090b;
+      fill-opacity: 0.18;
+    }
+    @media (prefers-color-scheme: dark) {
+      .ring-strong {
+        stroke: #fafafa;
+      }
+      .dot-weak {
+        fill: #fafafa;
+        fill-opacity: 0.22;
+      }
+    }
+  </style>
+  <circle class="dot-weak" cx="10" cy="9" r="2.5" />
+  <circle class="dot-weak" cx="22" cy="9" r="2.5" />
+  <circle class="dot-weak" cx="10" cy="16" r="2.5" />
+  <circle class="ring-strong" cx="22" cy="16" r="3" />
+  <circle class="ring-strong" cx="10" cy="23" r="3" />
+  <circle class="ring-strong" cx="22" cy="23" r="3" />
+</svg>

@@ -21,7 +21,7 @@ API base URL: `https://api.fact0.io`
 ## Integrations
 
 - [Overview](/integrations/overview)
-- **OpenTelemetry native**: OTLP/gRPC on `:4317` and OTLP/HTTP at `/v1/otlp/v1/traces` — [docs](/integrations/opentelemetry)
+- **OpenTelemetry native**: OTLP/gRPC on `:4317` and OTLP/HTTP at `/v1/otlp/v1/traces` - [docs](/integrations/opentelemetry)
 - Agent frameworks: [LangChain](/integrations/langchain) · [LangGraph](/integrations/langgraph) · [LlamaIndex](/integrations/llamaindex) · [CrewAI](/integrations/crewai) · [AutoGen](/integrations/autogen) · [Agno](/integrations/agno) · [CAMEL AI](/integrations/camel-ai) · [OpenAI Agents SDK](/integrations/openai-agents-sdk) · [Google ADK](/integrations/google-adk) · [Mastra](/integrations/mastra) · [Vercel AI SDK](/integrations/vercel-ai-sdk) · [ChatDev](/integrations/chatdev)
 - Web frameworks: [FastAPI](/integrations/fastapi) · [Next.js](/integrations/nextjs) · [Express](/integrations/express)
 

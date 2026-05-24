@@ -4,9 +4,13 @@
   "name": "Fact0",
   "logo": {
     "light": "/logo.svg",
-    "dark": "/logo-dark.svg"
+    "dark": "/logo-dark.svg",
+    "href": "https://fact0.io"
   },
-  "favicon": "/logo.svg",
+  "favicon": {
+    "light": "/favicon.svg",
+    "dark": "/favicon-dark.svg"
+  },
   "colors": {
     "primary": "#6366f1",
     "light": "#818cf8",
