@@ -1,0 +1,14 @@
+/* Mintlify navbar wordmark — default logo height is too small for the wide SVG. */
+nav-logo {
+  height: 34px;
+  min-height: 34px;
+}
+
+nav-logo img,
+nav-logo svg,
+nav-logo a img,
+nav-logo a svg {
+  height: 34px !important;
+  width: auto !important;
+  max-height: 34px;
+}
