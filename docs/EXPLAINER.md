@@ -1,6 +1,6 @@
 # Fact0 - Explainer
 
-Fact0 is **observability + compliance for AI agents** - like Datadog and a tamper-evident ledger combined into one tool.
+Fact0 is **observability + compliance for AI agents** — the universal fact layer, like Datadog and a tamper-evident ledger combined into one tool.
 
 ---
 
@@ -64,7 +64,7 @@ You can also push **custom events mid-span** (token-by-token streaming, retries,
 
 - **Endpoint:** `POST /v1/events/batch`
 - **Storage:** `audit_events` (SHA-256 hash-chained per tenant)
-- **Use for:** tamper-evident, regulator-ready proof that something happened
+- **Use for:** universal fact layer · tamper-evident, regulator-ready proof that something happened
 
 ### Schema
 
@@ -94,7 +94,7 @@ You can also push **custom events mid-span** (token-by-token streaming, retries,
 
 ## Elevator pitch
 
-> Fact0 is **observability + compliance for AI agents** - like Datadog and a tamper-evident ledger combined.
+> Fact0 is **observability + compliance for AI agents** — the universal fact layer, like Datadog and a tamper-evident ledger combined.
 >
 > Your agent does five kinds of things: it **calls LLMs**, **invokes tools**, **mutates state**, **asks humans for approval**, and **runs policy checks**. Fact0 records every one of those as a typed span - so you can replay any run frame-by-frame in the dashboard.
 >

@@ -3,7 +3,7 @@ info:
   title: Fact0 Audit API
   version: 1.0.0
   description: |
-    Compliance-grade, tamper-evident audit log API. Events form a per-tenant SHA-256 hash chain.
+    Compliance-grade universal fact layer with tamper-evident audit log API. Events form a per-tenant SHA-256 hash chain.
 
     **Authentication:** `Authorization: Bearer f0_live_*` or `alk_live_*` API keys (write or read scope).
 

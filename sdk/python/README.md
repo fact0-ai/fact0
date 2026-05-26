@@ -1,6 +1,6 @@
 # fact0
 
-Python SDK for [Fact0](https://fact0.io) - tamper-evident audit logs and execution telemetry for AI agents.
+Python SDK for [Fact0](https://fact0.io) — the universal fact layer with tamper-evident audit logs and execution telemetry for AI agents.
 
 ```bash
 pip install fact0-sdk

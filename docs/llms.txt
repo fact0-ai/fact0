@@ -1,6 +1,6 @@
 # Fact0 Documentation
 
-> Tamper-evident audit logs and execution telemetry for AI agents.
+> Universal fact layer with tamper-evident audit logs and execution telemetry for AI agents.
 
 ## Quick links
 
