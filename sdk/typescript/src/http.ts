@@ -19,7 +19,7 @@ export interface HttpClient {
 }
 
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
-const USER_AGENT = "@fact0/sdk/1.0.0";
+const USER_AGENT = "@fact0/sdk/1.0.2";
 
 /** Production Fact0 API origin. Override via {@link HttpConfig.baseUrl} for local dev. */
 export const DEFAULT_BASE_URL = "https://api.fact0.io";

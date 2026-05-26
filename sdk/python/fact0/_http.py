@@ -16,7 +16,7 @@ _log = logging.getLogger("fact0")
 _RETRYABLE = {429, 500, 502, 503, 504}
 DEFAULT_BASE_URL = "https://api.fact0.io"
 DEFAULT_TIMEOUT_S = 30.0
-USER_AGENT = "fact0-python/1.0.0"
+USER_AGENT = "fact0-python/1.0.2"
 
 
 def env_api_key() -> str | None:
