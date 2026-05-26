@@ -5,8 +5,7 @@ info:
   description: |
     Execution tracing API for AI agent observability - executions, spans, events, DAG, and replay.
 
-    **Note:** Telemetry routes are currently unauthenticated for local/demo use.
-    API-key authentication will be added in a future release.
+    **Auth:** `f0_live_*` API keys (same as the audit log on Fact0 Cloud).
 servers:
   - url: https://api.fact0.io
     description: Fact0 Cloud

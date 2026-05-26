@@ -25,7 +25,7 @@ For high-value events (LLM spend, customer data access, refunds) log to **both**
 
 - **Endpoints:** `/api/v1/executions/*`
 - **Storage:** `executions`, `spans`, `execution_events`
-- **Auth:** Unauthenticated locally (API keys planned)
+- **Auth:** `alk_live_*` or `f0_live_*` API keys (same as audit log on Fact0 Cloud)
 - **Use for:** DAG visualization, replay, debugging non-deterministic agents
 
 ## Span kinds (telemetry)
