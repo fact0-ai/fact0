@@ -31,7 +31,8 @@ Every SDK exposes two clients:
 | Variable | Used by | Default |
 |----------|---------|---------|
 | `FACT0_API_KEY` | All SDKs | - (required) |
-| `FACT0_BASE_URL` | All SDKs | `https://api.fact0.io` |
+
+The API origin defaults to **`https://api.fact0.io`** in every SDK. Override only in code (`base_url` / `baseUrl` / `BaseURL`) when using a local API or a private deployment — not via a separate env var.
 
 ## Quick links
 

@@ -14,23 +14,13 @@ from .exceptions import TransportError
 _log = logging.getLogger("fact0")
 
 _RETRYABLE = {429, 500, 502, 503, 504}
+DEFAULT_BASE_URL = "https://api.fact0.io"
 DEFAULT_TIMEOUT_S = 30.0
 USER_AGENT = "fact0-python/1.0.0"
 
 
-def env_base_url(default: str = "https://api.fact0.io") -> str:
-    return (
-        os.environ.get("FACT0_BASE_URL")
-        or os.environ.get("FACT0_BASE_URL")
-        or default
-    ).rstrip("/")
-
-
 def env_api_key() -> str | None:
-    return (
-        os.environ.get("FACT0_API_KEY")
-        or os.environ.get("FACT0_API_KEY")
-    )
+    return os.environ.get("FACT0_API_KEY")
 
 
 class SyncHTTP:

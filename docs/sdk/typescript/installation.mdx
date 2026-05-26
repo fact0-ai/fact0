@@ -20,7 +20,6 @@ import { Fact0Client } from "@fact0/sdk";
 
 const client = new Fact0Client({
   apiKey: process.env.FACT0_API_KEY!,
-  baseUrl: process.env.FACT0_BASE_URL ?? "https://api.fact0.io",
 });
 
 await client.audit.log({
@@ -48,5 +47,6 @@ Types are generated from OpenAPI specs in `openapi/`.
 
 | Variable | Purpose |
 |----------|---------|
-| `FACT0_API_KEY` | Bearer API key |
-| `FACT0_BASE_URL` | API origin |
+| `FACT0_API_KEY` | Bearer API key (optional if `apiKey` is set in code) |
+
+API origin defaults to `https://api.fact0.io`. Override with `baseUrl` in the constructor for local dev (e.g. `http://localhost:8000`).

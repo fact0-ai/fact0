@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ._http import SyncHTTP, env_api_key, env_base_url
+from ._http import DEFAULT_BASE_URL, SyncHTTP, env_api_key
 from .audit.async_client import AsyncAuditClient
 from .audit.client import AuditClient
 from .audit.models import Actor, ActorType, Outcome, Resource
@@ -47,7 +47,7 @@ class Client:
         **audit_kwargs,
     ):
         resolved_key = api_key or env_api_key() or ""
-        resolved_base = (base_url or env_base_url()).rstrip("/")
+        resolved_base = (base_url or DEFAULT_BASE_URL).rstrip("/")
         custom_transport = audit_kwargs.pop("transport", None)
         if custom_transport is not None and isinstance(custom_transport, SyncHTTP):
             http = custom_transport
@@ -82,7 +82,7 @@ class AsyncClient:
         resolved_key = api_key or env_api_key() or ""
         if not resolved_key:
             raise ValueError("api_key is required for AsyncClient audit operations")
-        resolved_base = (base_url or env_base_url()).rstrip("/")
+        resolved_base = (base_url or DEFAULT_BASE_URL).rstrip("/")
         self.audit = AsyncAuditClient(resolved_base, resolved_key, sync=sync)
         self._base_url = resolved_base
         self.telemetry = TelemetryClient(

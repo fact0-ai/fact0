@@ -25,7 +25,7 @@ audit = client.audit  # or client.audit directly via convenience methods
 | `sync` | `False` | Synchronous ingest (`X-Fact0-Sync: true`) |
 | `poll_receipts` | `True` | Poll async receipts after ingest |
 
-Environment variables: `FACT0_API_KEY`, `FACT0_BASE_URL`.
+Environment variable: `FACT0_API_KEY` (optional if `api_key` is passed). Override the API origin with the `base_url` parameter.
 
 ## Write methods
 

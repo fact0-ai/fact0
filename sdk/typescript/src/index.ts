@@ -1,4 +1,9 @@
-import { createHttpClient, type HttpClient, type HttpConfig } from "./http.js";
+import {
+  createHttpClient,
+  DEFAULT_BASE_URL,
+  type HttpClient,
+  type HttpConfig,
+} from "./http.js";
 import { AuditClient } from "./audit/client.js";
 import { TelemetryClient } from "./telemetry/client.js";
 
@@ -16,5 +21,5 @@ export class Fact0Client {
   }
 }
 
-export { AuditClient, TelemetryClient };
+export { AuditClient, TelemetryClient, DEFAULT_BASE_URL };
 export type { AuditEventInput, Actor, Resource } from "./audit/types.js";

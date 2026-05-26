@@ -14,6 +14,10 @@ import (
 
 const userAgent = "fact0-go/1.0.0"
 
+// DefaultBaseURL is the production Fact0 API origin.
+// Override via Config.BaseURL for local development or private deployments.
+const DefaultBaseURL = "https://api.fact0.io"
+
 // Config configures the Fact0 client.
 type Config struct {
 	APIKey     string
@@ -34,10 +38,7 @@ type Client struct {
 // NewClient constructs a Fact0 client.
 func NewClient(cfg Config) *Client {
 	if cfg.BaseURL == "" {
-		cfg.BaseURL = "https://api.fact0.io"
-	}
-	if cfg.APIKey == "" {
-		cfg.APIKey = os.Getenv("FACT0_API_KEY")
+		cfg.BaseURL = DefaultBaseURL
 	}
 	if cfg.APIKey == "" {
 		cfg.APIKey = os.Getenv("FACT0_API_KEY")

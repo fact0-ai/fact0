@@ -28,8 +28,8 @@ import (
 
 func main() {
     client := fact0.NewClient(fact0.Config{
-        APIKey:  os.Getenv("FACT0_API_KEY"),
-        BaseURL: os.Getenv("FACT0_BASE_URL"), // defaults to https://api.fact0.io
+        APIKey: os.Getenv("FACT0_API_KEY"),
+        // BaseURL defaults to https://api.fact0.io; set for local dev only.
     })
 
     err := client.Audit.Log(context.Background(), fact0.AuditEventInput{

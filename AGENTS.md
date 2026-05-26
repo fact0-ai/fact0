@@ -46,7 +46,7 @@ const client = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
 await client.audit.log({ ... });
 ```
 
-Env: `FACT0_API_KEY`, `FACT0_BASE_URL` (default `https://api.fact0.io`).
+Env: `FACT0_API_KEY`. API origin defaults to `https://api.fact0.io`; override via `base_url` / `baseUrl` / `BaseURL` in client config (local dev only).
 
 ### Go
 

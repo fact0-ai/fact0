@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from fact0._http import SyncHTTP, env_api_key, env_base_url
+from fact0 import Client
+from fact0._http import DEFAULT_BASE_URL, SyncHTTP, env_api_key
 from fact0.exceptions import TransportError
 
 
@@ -51,9 +52,16 @@ def test_sync_http_retries_then_succeeds(mock_server) -> None:
     assert state["calls"] == 2
 
 
-def test_env_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FACT0_BASE_URL", "https://custom.example/")
+def test_env_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FACT0_API_KEY", "alk_live_env")
-
-    assert env_base_url() == "https://custom.example"
     assert env_api_key() == "alk_live_env"
+
+
+def test_client_default_base_url() -> None:
+    client = Client(api_key="alk_live_test")
+    assert client._http.base_url == DEFAULT_BASE_URL
+
+
+def test_client_custom_base_url() -> None:
+    client = Client(api_key="alk_live_test", base_url="http://localhost:8000/")
+    assert client._http.base_url == "http://localhost:8000"

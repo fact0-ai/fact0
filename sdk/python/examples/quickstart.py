@@ -14,10 +14,7 @@ import fact0
 
 
 def main() -> None:
-    client = fact0.Client(
-        api_key=os.environ["FACT0_API_KEY"],
-        base_url=os.environ.get("FACT0_BASE_URL", "https://api.fact0.io"),
-    )
+    client = fact0.Client(api_key=os.environ["FACT0_API_KEY"])
 
     client.audit.log(
         actor={"id": "user_123", "type": "human", "email": "admin@acme.com"},
