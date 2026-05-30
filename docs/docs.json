@@ -20,6 +20,10 @@
     {
       "name": "Dashboard",
       "url": "https://app.fact0.io"
+    },
+    {
+      "name": "Slack Community",
+      "url": "https://join.slack.com/t/fact0-ai/shared_invite/zt-3za8r8sxs-FxzVfLD9Ij9~IOw8VoS7WQ"
     }
   ],
   "topbarCtaButton": {
@@ -170,6 +174,7 @@
     ]
   },
   "footerSocials": {
-    "github": "https://github.com/fact0-ai/fact0"
+    "github": "https://github.com/fact0-ai/fact0",
+    "slack": "https://join.slack.com/t/fact0-ai/shared_invite/zt-3za8r8sxs-FxzVfLD9Ij9~IOw8VoS7WQ"
   }
 }

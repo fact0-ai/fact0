@@ -5,6 +5,23 @@ description: SDK and API release notes.
 
 # Changelog
 
+## v1.2.0 - 2026-05-31
+
+### GDPR-Compliant Full Purge
+- Administrative **Hard Delete User** functionality is now fully integrated into the Founder Console.
+- Purges all teammate profiles, owned organization workspaces, api credentials, OTel traces/spans/execution DAGs, and compliance-grade audit logs in a single ACID SQL transaction.
+
+### Stripe & SaaS Plan Quotas
+- Hardened multi-tenant subscription enforcements across the Go API and Next.js layers:
+  - **Free**: Capped at **1 team seat**, **5 PDF/ZIP evidence exports per month**, and 30-day data retention.
+  - **Pro**: Capped at **5 team seats**, **50 PDF/ZIP evidence exports per month**, and 1-year data retention.
+  - **Team**: Capped at **10 team seats**, **200 PDF/ZIP evidence exports per month**, and 7-year data retention.
+
+### Transactional Email Upgrades
+- Aligned default transactional email template delivery to **`yash@fact0.io`** with automatic, direct reply-routing.
+
+---
+
 ## SDK v1.0.2 - 2026-05-26
 
 ### All SDKs (Python, TypeScript, Go)
