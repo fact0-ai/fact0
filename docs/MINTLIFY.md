@@ -40,6 +40,6 @@ Paths in `docs.json` are relative to `docs/`:
 
 `.github/workflows/docs-validate.yml` runs on every PR touching `docs/**`.
 
-## Migration from iyashjayesh/fact0-docs
+## Migration from fact0-ai/fact0-docs
 
-After verifying preview deploys from this repo, disconnect the old `iyashjayesh/fact0-docs` GitHub integration in Mintlify and archive that repository.
+After verifying preview deploys from this repo, disconnect the old `fact0-ai/fact0-docs` GitHub integration in Mintlify and archive that repository.

@@ -12,7 +12,7 @@ This folder is part of the [fact0-ai/fact0](https://github.com/fact0-ai/fact0) m
 | Branch | `main` |
 | Monorepo path | **`docs`** |
 
-See [MINTLIFY.md](./MINTLIFY.md) for dashboard setup and migration from `iyashjayesh/fact0-docs`.
+See [MINTLIFY.md](./MINTLIFY.md) for dashboard setup and migration from `fact0-ai/fact0-docs`.
 
 ## Local preview
 
@@ -42,7 +42,7 @@ bash scripts/sync-openapi-from-app.sh
 ```
 
 Auto-detects the app repo at `../` (nested clone) or `../fact0` (sibling clone).
-Override with `APP_REPO=/path/to/iyashjayesh/fact0` if needed.
+Override with `APP_REPO=/path/to/fact0-ai/fact0` if needed.
 
 ## CI
 
