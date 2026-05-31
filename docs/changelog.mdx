@@ -11,11 +11,17 @@ description: SDK and API release notes.
 - Administrative **Hard Delete User** functionality is now fully integrated into the Founder Console.
 - Purges all teammate profiles, owned organization workspaces, api credentials, OTel traces/spans/execution DAGs, and compliance-grade audit logs in a single ACID SQL transaction.
 
-### Stripe & SaaS Plan Quotas
+### Stripe & SaaS Plan Quotas & Secure Gating
 - Hardened multi-tenant subscription enforcements across the Go API and Next.js layers:
   - **Free**: Capped at **1 team seat**, **1 active share link**, **6 Spotlight AI copilot queries/month**, **5 PDF/ZIP evidence exports per month**, and 30-day data retention.
   - **Pro**: Capped at **5 team seats**, **unlimited active share links**, **unlimited Spotlight AI copilot queries**, **50 PDF/ZIP evidence exports per month**, and 1-year data retention.
   - **Team**: Capped at **10 team seats**, **unlimited active share links**, **unlimited Spotlight AI copilot queries**, **200 PDF/ZIP evidence exports per month**, and 7-year data retention.
+- **Enhanced Visual Gating Security**: Premium lock screens and glassmorphic blurs are fully deployed on Free tier executions and replays. Sensitive telemetry nodes, spans, and replay frames are physically blocked from server-side fetches on Free accounts, ensuring zero data footprint in browser memory to block DevTools inspection bypasses.
+
+### Spotlight AI Copilot History & Conversations
+- **Conversation History Panel**: Integrated a premium glassmorphic history sidebar enabling users to browse and resume all previous chat transcripts persisted in PostgreSQL.
+- **Multi-Session Management**: Added "New Chat" and "Session Switching" buttons to header navigation with dynamic real-time JWT refreshing and session synchronization.
+- **Dynamic Quota Tracker**: Message counts sync immediately in real-time upon AI completion, and quota exhaustion is clearly parsed into polished Upgrade call-to-actions.
 
 ### Transactional Email Upgrades
 - Aligned default transactional email template delivery to **`yash@fact0.io`** with automatic, direct reply-routing.
