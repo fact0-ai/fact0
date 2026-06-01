@@ -61,12 +61,14 @@ class Client:
 
     def close(self) -> None:
         self.audit.close()
+        self.telemetry.close()
 
     def log(self, **kwargs) -> None:
         self.audit.log(**kwargs)
 
     def flush(self) -> None:
         self.audit.flush()
+        self.telemetry.flush()
 
 
 class AsyncClient:
@@ -91,6 +93,7 @@ class AsyncClient:
 
     async def close(self) -> None:
         await self.audit.close()
+        self.telemetry.close()
 
     async def __aenter__(self) -> AsyncClient:
         return self

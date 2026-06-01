@@ -92,13 +92,14 @@ class SyncHTTP:
                         return resp.json()
                     except ValueError:
                         return {}
+                err_msg = resp.text if resp.text else "(no response body)"
                 if resp.status_code not in _RETRYABLE:
                     raise TransportError(
-                        f"{method} {path} returned {resp.status_code}: {resp.text[:200]}",
+                        f"{method} {path} returned {resp.status_code}: {err_msg}",
                         status_code=resp.status_code,
                     )
                 last_err = TransportError(
-                    f"{method} {path} returned {resp.status_code}",
+                    f"{method} {path} returned {resp.status_code}: {err_msg}",
                     status_code=resp.status_code,
                 )
                 if retry_after:
