@@ -1,0 +1,102 @@
+---
+title: Audit client
+description: TypeScript AuditClient API reference for compliance-grade audit logging.
+---
+
+# Audit client
+
+```typescript
+import { Fact0Client } from "@fact0/sdk";
+
+const client = new Fact0Client({
+  apiKey: process.env.FACT0_API_KEY!,
+});
+const audit = client.audit;
+```
+
+<Note>
+  Audit logging requires a write-scoped or read-scoped `alk_live_*` or `f0_live_*` API key.
+</Note>
+
+## Constructor options
+
+The `Fact0Client` accepts the following options:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `apiKey` | required | Write or read-scoped API key |
+| `baseUrl` | `https://api.fact0.io` | API origin (e.g. override with `http://localhost:8000` for local development) |
+
+You can also pass these values via the environment variable `FACT0_API_KEY`.
+
+## Write methods
+
+### `log(event: AuditEventInput): Promise<void>`
+
+Validates and writes a single audit event immediately.
+
+```typescript
+await client.audit.log({
+  actor: { id: "user_123", type: "human", email: "user@example.com" },
+  action: "document.delete",
+  resource: { id: "doc_456", type: "document", name: "Q3 Report" },
+  outcome: "success",
+  metadata: { ip: "203.0.113.5" },
+});
+```
+
+### `logBatch(events: AuditEventInput[]): Promise<Record<string, unknown>>`
+
+Sends up to 1000 events in a single batch request.
+
+```typescript
+const result = await client.audit.logBatch([event1, event2]);
+```
+
+## Read methods
+
+### `getEvent(id: string): Promise<Record<string, unknown>>`
+
+`GET /v1/events/{id}`
+
+Retrieves a single audit event by its ID.
+
+### `listEvents(params?: ListEventsParams): Promise<Record<string, unknown>>`
+
+`GET /v1/events`
+
+Filters and lists events. Parameters include: `actor_id`, `actor_type`, `action`, `resource_id`, `outcome`, `from`, `to`, `page`, and `page_size`.
+
+### `getReceipt(id: string): Promise<Record<string, unknown>>`
+
+`GET /v1/receipts/{id}`
+
+Retrieves an asynchronous ingestion receipt status.
+
+## Verify methods
+
+### `verify(params?: { from?: string; to?: string; scan_all?: boolean }): Promise<Record<string, unknown>>`
+
+`GET /v1/verify`
+
+Walks the hash chain and verifies integrity.
+
+### `verifyEvent(id: string): Promise<Record<string, unknown>>`
+
+`GET /v1/events/{id}/verify`
+
+Recomputes the hash of a single event and checks for tampering.
+
+## Export methods
+
+### `exportPdf(params?: { from?: string; to?: string }): Promise<ArrayBuffer>`
+
+`GET /v1/export/pdf`
+
+Returns an `ArrayBuffer` representing the SOC 2-flavored PDF audit report.
+
+### `exportEvidencePack(params?: { from?: string; to?: string }): Promise<ArrayBuffer>`
+
+`GET /v1/export/evidence-pack`
+
+Returns an `ArrayBuffer` containing the ZIP evidence pack.

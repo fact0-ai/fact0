@@ -1,0 +1,88 @@
+---
+title: Audit client
+description: Go AuditClient API reference for compliance-grade audit logging.
+---
+
+# Audit client
+
+```go
+import (
+    "os"
+    fact0 "github.com/fact0-ai/fact0-go"
+)
+
+client := fact0.NewClient(fact0.Config{
+    APIKey: os.Getenv("FACT0_API_KEY"),
+})
+audit := client.Audit
+```
+
+<Note>
+  Audit logging requires a write-scoped or read-scoped `alk_live_*` or `f0_live_*` API key.
+</Note>
+
+## Config Options
+
+The `Config` struct supports the following options:
+
+```go
+type Config struct {
+    APIKey     string        // Write or read-scoped API key
+    BaseURL    string        // API origin (defaults to https://api.fact0.io)
+    SyncIngest bool          // Set to true to wait for transactional commit (X-Fact0-Sync header)
+    Timeout    time.Duration // HTTP request timeout (defaults to 30s)
+    MaxRetries int           // Retry attempts on rate limits/5xx (defaults to 3)
+}
+```
+
+## Write methods
+
+### `Log(ctx context.Context, event AuditEventInput) error`
+
+Validates and writes a single audit event immediately.
+
+```go
+err := client.Audit.Log(context.Background(), fact0.AuditEventInput{
+    Actor:    fact0.Actor{ID: "user_123", Type: "human", Email: "user@example.com"},
+    Action:   "document.delete",
+    Resource: fact0.Resource{ID: "doc_456", Type: "document", Name: "Q3 Report"},
+    Outcome:  "success",
+    Metadata: map[string]interface{}{"ip": "203.0.113.5"},
+})
+```
+
+### `LogBatch(ctx context.Context, events []AuditEventInput) (map[string]any, error)`
+
+Sends up to 1000 events in a single batch request.
+
+```go
+result, err := client.Audit.LogBatch(context.Background(), []fact0.AuditEventInput{event1, event2})
+```
+
+## Read methods
+
+### `GetEvent(ctx context.Context, id string) (map[string]any, error)`
+
+`GET /v1/events/{id}`
+
+Retrieves a single audit event by its ID.
+
+### `ListEvents(ctx context.Context, query string) (map[string]any, error)`
+
+`GET /v1/events`
+
+Filters and lists events. The `query` string can contain filters like `?actor_id=user_123&action=document.delete`.
+
+### `GetReceipt(ctx context.Context, id string) (map[string]any, error)`
+
+`GET /v1/receipts/{id}`
+
+Retrieves an asynchronous ingestion receipt status.
+
+## Verify methods
+
+### `Verify(ctx context.Context, query string) (map[string]any, error)`
+
+`GET /v1/verify`
+
+Walks the hash chain and verifies integrity. Query parameters include `?from=&to=`.

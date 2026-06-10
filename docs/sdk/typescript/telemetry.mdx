@@ -1,0 +1,80 @@
+---
+title: Telemetry client
+description: TypeScript TelemetryClient for execution tracing, spans, and replay.
+---
+
+# Telemetry client
+
+```typescript
+import { Fact0Client } from "@fact0/sdk";
+
+const client = new Fact0Client({
+  apiKey: process.env.FACT0_API_KEY!,
+});
+const tel = client.telemetry;
+```
+
+<Note>
+  Telemetry requires the same `alk_live_*` or `f0_live_*` API key as the audit log.
+</Note>
+
+## How it works
+
+The execution DAG (Directed Acyclic Graph) is **reconstructed dynamically on the backend** from the trace relationships you stream. The SDK client doesn't need to manually compute the DAG tree; it simply starts the execution, records the spans (linking them to parent spans via `parent_span_id`), and ends the execution.
+
+## Telemetry workflow
+
+```typescript
+// 1. Start the execution
+const execution = await tel.startExecution({
+  agent_id: "customer-support-bot",
+  agent_name: "Support Bot",
+  trigger: "user_query",
+});
+const executionId = execution.id as string;
+
+// 2. Ingest spans with parent-child relationships
+await tel.ingestSpans(executionId, [
+  {
+    span_id: "span-1",
+    name: "Search Knowledge Base",
+    start_time: new Date().toISOString(),
+    end_time: new Date().toISOString(),
+  },
+  {
+    span_id: "span-2",
+    name: "Generate Response",
+    parent_span_id: "span-1", // Establishes causality/hierarchy
+    start_time: new Date().toISOString(),
+    end_time: new Date().toISOString(),
+  }
+]);
+
+// 3. End the execution
+await tel.endExecution(executionId, "success");
+```
+
+### Span types
+
+Valid span types include: `TOOL_CALL`, `MODEL_INVOCATION`, `STATE_MUTATION`, `HUMAN_APPROVAL`, `POLICY_EVALUATION`, `CUSTOM`.
+
+## Read methods
+
+| Method | REST | Description |
+|--------|------|-------------|
+| `listExecutions(params?: Record<string, string \| number \| undefined>)` | `GET /api/v1/executions` | List agent runs and metadata |
+| `getExecution(id: string)` | `GET /api/v1/executions/{id}` | Get run summary and state |
+| `getSpans(executionId: string)` | `GET /api/v1/executions/{id}/spans` | Get all spans under an execution |
+| **`getDag(executionId: string)`** | `GET /api/v1/executions/{id}/dag` | **Get the backend-computed execution DAG** |
+| `replay(executionId: string, params?: Record<string, number \| undefined>)` | `GET /api/v1/executions/{id}/replay` | Get visual step-by-step replay states |
+
+## Ingest methods
+
+| Method | REST | Description |
+|--------|------|-------------|
+| `startExecution(body)` | `POST /api/v1/executions` | Registers a new agent execution |
+| `ingestSpans(executionId, spans)` | `POST /api/v1/executions/{id}/spans` | Stream execution trace spans |
+| `ingestEvents(executionId, events)` | `POST /api/v1/executions/{id}/events` | Ingest log events for spans |
+| `endExecution(executionId, status)` | `PUT /api/v1/executions/{id}/end` | Close the execution run |
+
+Status values: `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.

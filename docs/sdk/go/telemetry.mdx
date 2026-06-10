@@ -1,0 +1,63 @@
+---
+title: Telemetry client
+description: Go TelemetryClient for execution tracing, spans, and replay.
+---
+
+# Telemetry client
+
+```go
+import (
+    "os"
+    fact0 "github.com/fact0-ai/fact0-go"
+)
+
+client := fact0.NewClient(fact0.Config{
+    APIKey: os.Getenv("FACT0_API_KEY"),
+})
+tel := client.Telemetry
+```
+
+<Note>
+  Telemetry requires the same `alk_live_*` or `f0_live_*` API key as the audit log.
+</Note>
+
+## How it works
+
+The execution DAG (Directed Acyclic Graph) is **reconstructed dynamically on the backend** from the trace relationships you stream. The SDK client doesn't need to manually compute the DAG tree; it simply starts the execution, records the spans (linking them to parent spans via `parent_span_id`), and ends the execution.
+
+## Telemetry workflow
+
+```go
+// 1. Start the execution
+exec, err := tel.StartExecution(context.Background(), fact0.StartExecutionRequest{
+    AgentID:   "customer-support-bot",
+    AgentName: "Support Bot",
+    Trigger:   "user_query",
+})
+if err != nil {
+    log.Fatal(err)
+}
+executionID := exec["id"].(string)
+
+// 2. Ingest spans with parent-child relationships
+// Note: Currently, ingest spans are sent via REST HTTP endpoints.
+// Under the hood, you can call the underlying ingest API endpoints.
+```
+
+## Read methods
+
+| Method | REST | Description |
+|--------|------|-------------|
+| `ListExecutions(ctx, query)` | `GET /api/v1/executions` | List agent runs and metadata |
+| `GetExecution(ctx, executionID)` | `GET /api/v1/executions/{id}` | Get run summary and state |
+| `GetDAG(ctx, executionID)` | `GET /api/v1/executions/{id}/dag` | **Get the backend-computed execution DAG** |
+| `Replay(ctx, executionID, query)` | `GET /api/v1/executions/{id}/replay` | Get visual step-by-step replay states |
+
+## Ingest methods
+
+| Method | REST | Description |
+|--------|------|-------------|
+| `StartExecution(ctx, req)` | `POST /api/v1/executions` | Registers a new agent execution |
+| `EndExecution(ctx, executionID, status)` | `PUT /api/v1/executions/{id}/end` | Close the execution run |
+
+Status values: `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.

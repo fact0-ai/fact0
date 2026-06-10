@@ -105,13 +105,17 @@
           {
             "group": "TypeScript",
             "pages": [
-              "sdk/typescript/installation"
+              "sdk/typescript/installation",
+              "sdk/typescript/audit",
+              "sdk/typescript/telemetry"
             ]
           },
           {
             "group": "Go",
             "pages": [
-              "sdk/go/installation"
+              "sdk/go/installation",
+              "sdk/go/audit",
+              "sdk/go/telemetry"
             ]
           }
         ]
