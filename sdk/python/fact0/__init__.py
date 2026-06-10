@@ -16,7 +16,7 @@ from .exceptions import (
 )
 from .telemetry.client import TelemetryClient
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 __all__ = [
     "Client",

@@ -26,6 +26,7 @@ def test_start_execution(mock_server) -> None:
 def test_end_execution(mock_server) -> None:
     client = TelemetryClient(SyncHTTP(mock_server.url, "alk_live_test", max_retries=0))
     client.end_execution("exec_123", "success")
+    client.flush()
 
     req = mock_server.received[0]
     assert req["method"] == "PUT"
