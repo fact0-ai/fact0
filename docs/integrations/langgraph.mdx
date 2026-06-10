@@ -17,7 +17,7 @@ Wrap each node with a telemetry span and reuse the same `execution_id` across no
 import fact0
 from langgraph.graph import StateGraph
 
-client = fact0.Client(api_key="alk_live_...")
+client = fact0.Client(api_key="f0_live_...")
 
 def with_telemetry(name: str, fn):
     def wrapped(state):

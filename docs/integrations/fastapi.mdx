@@ -23,7 +23,7 @@ audit: fact0.AsyncClient | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global audit
-    audit = fact0.AsyncClient(api_key="alk_live_...")
+    audit = fact0.AsyncClient(api_key="f0_live_...")
     yield
     await audit.close()
 

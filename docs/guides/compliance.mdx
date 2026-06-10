@@ -1,53 +1,69 @@
 ---
-title: Compliance guide
-description: For GRC teams and security reviewers - no code required.
+title: Security reviews & compliance
+description: Unblock your B2B enterprise deals by satisfying CISO questionnaires about autonomous agents.
 ---
 
-# Compliance guide
+# Security reviews & compliance
 
-This page is for **compliance leads, GRC managers, and security reviewers**.
-Engineers should start with the [Quickstart](/quickstart).
+This page is for **founders, compliance leads, GRC managers, and enterprise security reviewers**. 
 
-## What Fact0 provides
+When selling autonomous AI agents to enterprise buyers, standard SOC 2 automation platforms (like Vanta or Drata) do not answer the runtime safety questions that CISOs ask. Fact0 is built specifically to bridge this gap, providing runtime proof of agent safety boundaries.
 
-- Immutable, hash-chained audit history per organization
-- Dashboard filtering by actor, action, time range, outcome
-- PDF audit reports and ZIP evidence packs
-- Public verification URLs for external auditors
-- Read-only share links for customer security teams
+## Key Security Review Questions Answered
 
-## Dashboard access
+Fact0 allows you to satisfy the most common AI agent security requirements:
 
-**Cloud:** [app.fact0.io/dashboard/audit](https://app.fact0.io/dashboard/audit)
+### 1. Tool Permission Boundaries
+* **The Question:** *"How do you guarantee the agent doesn't execute arbitrary writes or unauthorized system commands?"*
+* **The Proof:** Every tool call is logged as a separate audit event including the actor identity, input parameters, and resource targets, proving tool execution boundaries are strictly enforced.
 
-Filter bar supports actor, actor type, action, resource, outcome, and date range.
+### 2. Data Leakage & Exfiltration
+* **The Question:** *"What customer data is being sent to third-party models or external APIs?"*
+* **The Proof:** All egress actions and API payloads are logged in the immutable chain, creating a clean record of all data boundary flows.
 
-## Evidence export
+### 3. Unsupervised Action Limits
+* **The Question:** *"What happens if the agent enters an infinite loop or performs unsafe actions unsupervised?"*
+* **The Proof:** Traces include execution budgets and loop limits. If an agent behaves unexpectedly, you can point to the visual execution DAG to show the exact point where it was terminated.
 
-| Export | Endpoint | Format |
-|--------|----------|--------|
-| SOC 2 PDF pack | `GET /v1/export/pdf` | PDF |
-| Full evidence pack | `GET /v1/export/evidence-pack` | ZIP (PDF + metadata) |
+### 4. Human-in-the-Loop Policies
+* **The Question:** *"Can the agent bypass human approval for sensitive actions (e.g. initiating payments, deleting documents)?"*
+* **The Proof:** Fact0 cryptographically registers human approvals alongside agent actions, proving that a manual gate was validated before execution.
 
-Exports are themselves logged as `audit.export` events.
+---
 
-## Chain verification
+## Evidence Export
 
-`GET /v1/verify?from=&to=` walks the SHA-256 chain and reports:
+To share this proof with a prospect's security team:
 
-- `valid` - chain intact
-- `events_checked` - count scanned
-- `root_hash` - terminal hash
-- `first_broken_event_id` - if tampering detected
+| Export | Endpoint | Description |
+|--------|----------|-------------|
+| Security PDF Pack | `GET /v1/export/pdf` | PDF report containing tool boundary logs and human-in-the-loop validation |
+| Full Evidence Pack | `GET /v1/export/evidence-pack` | ZIP containing the PDF and verified JSON metadata |
 
-Share verification: `GET /v1/share/verify` with share-link token.
+Exports are themselves recorded as `audit.export` events for compliance.
 
-## SOC 2 mapping (informative)
+---
 
-| Control area | Fact0 capability |
+## Chain Verification
+
+Any security auditor can verify that the audit log has not been tampered with or modified. 
+
+Calling `GET /v1/verify?from=&to=` walks the SHA-256 chain and reports:
+* `valid` - chain intact
+* `events_checked` - count scanned
+* `root_hash` - terminal hash
+* `first_broken_event_id` - if tampering is detected
+
+You can share a time-limited read-only link with your prospect's security team so they can view and verify the chain themselves without needing a Fact0 account.
+
+---
+
+## Mapping to Controls & SOC 2
+
+| Control Area | Fact0 Capability |
 |--------------|----------------------|
-| CC6.8 | Universal fact layer · tamper-evident audit trail |
-| CC7.2 | Security event monitoring via audit dashboard |
-| CC9.2 | Exportable evidence for risk assessment |
-
-Consult your auditor for control mapping specific to your environment.
+| **Tool Boundary Validation** | Cryptographic runtime trace of every tool call and permission scope |
+| **Data Leakage Audit** | Log of all actor and agent data egress paths |
+| **SOC 2 CC6.8 (Logical Access)** | Actor identity logged for every agent action |
+| **SOC 2 CC7.2 (System Monitoring)** | Continuous append-only log of all agent activity |
+| **SOC 2 CC9.2 (Risk Mitigation)** | Exportable evidence packs for procurement reviews |

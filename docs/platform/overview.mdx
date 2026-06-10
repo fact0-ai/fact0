@@ -21,15 +21,15 @@ It runs the audit ingest pipeline, hash-chain verification, telemetry storage, a
   <Card title="Async ingest by default" icon="bolt">
     Audit writes batch in the background. Receipts are polled by the SDK so you never block on the network.
   </Card>
-  <Card title="SOC 2 evidence packs" icon="file-pdf">
-    Export PDF + ZIP bundles mapped to common SOC 2 controls. Auditor-ready in minutes.
+  <Card title="Security evidence packs" icon="file-pdf">
+    Export PDF + ZIP bundles mapped to common security controls. Auditor-ready in minutes.
   </Card>
 </CardGroup>
 
 ## How it fits together
 
 ```
-┌──────────────────┐   alk_live_*       ┌────────────────────────┐
+┌──────────────────┐   f0_live_*        ┌────────────────────────┐
 │ Your agent / app │ ─────────────────▶ │  Fact0 Platform   │
 │ (Py / TS / Go)   │   /v1/* events     │  api.fact0.io     │
 └──────────────────┘   /api/v1 spans    │                        │
@@ -51,7 +51,7 @@ It runs the audit ingest pipeline, hash-chain verification, telemetry storage, a
     [app.fact0.io](https://app.fact0.io) → sign in → onboarding wizard.
   </Step>
   <Step title="Mint a write-scoped API key">
-    Dashboard → **Settings → API Keys → New key**. Copy the `alk_live_...` value.
+    Dashboard → **Settings → API Keys → New key**. Copy the `f0_live_...` value.
   </Step>
   <Step title="Install the SDK">
     ```bash

@@ -17,7 +17,7 @@ One execution per crew run, one span per agent task.
 import fact0
 from crewai import Crew, Agent, Task
 
-client = fact0.Client(api_key="alk_live_...")
+client = fact0.Client(api_key="f0_live_...")
 
 with client.telemetry.execution(agent_id="research-crew") as ex:
     crew = Crew(agents=[...], tasks=[...])

@@ -15,7 +15,7 @@ const audit = client.audit;
 ```
 
 <Note>
-  Audit logging requires a write-scoped or read-scoped `alk_live_*` or `f0_live_*` API key.
+  Audit logging requires a write-scoped or read-scoped `f0_live_*` or `f0_live_*` API key.
 </Note>
 
 ## Constructor options
@@ -93,7 +93,7 @@ Recomputes the hash of a single event and checks for tampering.
 
 `GET /v1/export/pdf`
 
-Returns an `ArrayBuffer` representing the SOC 2-flavored PDF audit report.
+Returns an `ArrayBuffer` representing the PDF audit report.
 
 ### `exportEvidencePack(params?: { from?: string; to?: string }): Promise<ArrayBuffer>`
 

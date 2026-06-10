@@ -18,14 +18,14 @@ For high-value events (LLM spend, customer data access, refunds) log to **both**
 
 - **Endpoints:** `/v1/events`, `/v1/events/batch`
 - **Storage:** `audit_events` - SHA-256 hash chain per tenant
-- **Auth:** `alk_live_*` API keys (read/write scopes)
-- **Use for:** SOC 2 evidence, tamper detection, regulator exports
+- **Auth:** `f0_live_*` API keys (read/write scopes)
+- **Use for:** security evidence, tamper detection, regulator exports
 
 ## Execution telemetry
 
 - **Endpoints:** `/api/v1/executions/*`
 - **Storage:** `executions`, `spans`, `execution_events`
-- **Auth:** `alk_live_*` or `f0_live_*` API keys (same as audit log on Fact0 Cloud)
+- **Auth:** `f0_live_*` API keys (same as audit log on Fact0 Cloud)
 - **Use for:** DAG visualization, replay, debugging non-deterministic agents
 
 ## Span kinds (telemetry)

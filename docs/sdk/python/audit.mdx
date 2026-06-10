@@ -8,7 +8,7 @@ description: Python AuditClient API reference for compliance-grade audit logging
 ```python
 import fact0
 
-client = fact0.Client(api_key="alk_live_...")
+client = fact0.Client(api_key="f0_live_...")
 audit = client.audit  # or client.audit directly via convenience methods
 ```
 
@@ -16,7 +16,7 @@ audit = client.audit  # or client.audit directly via convenience methods
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `api_key` | required | Write or read-scoped `alk_live_*` key |
+| `api_key` | required | Write or read-scoped `f0_live_*` key |
 | `base_url` | `https://api.fact0.io` | API origin |
 | `batch_max_size` | `100` | Max events per flush |
 | `batch_max_wait_ms` | `500` | Max wait before flush |
