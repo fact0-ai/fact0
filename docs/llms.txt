@@ -36,6 +36,154 @@ API base URL: `https://api.fact0.io`
 - [Audit API](/api-reference/audit-api)
 - [Telemetry API](/api-reference/telemetry-api)
 
-## LLM integration
+## LLM Integration & AI Coding Assistant Guidelines
 
-For AI coding assistants, use this docs site or `/llms-full.txt` for a machine-readable reference.
+When writing code to integrate Fact0, follow these strict rules to ensure correct usage and prevent import errors.
+
+### 1. SDK Import and Package Guidelines
+
+* **Python SDK**:
+  * **PyPI Package Name**: `fact0-sdk` (Do NOT use `fact0` as the package name on pip, it is a different package).
+  * **Import Statement**: `import fact0` or `from fact0 import Client, AsyncClient, Fact0Error, ValidationError, TransportError`.
+  * **CRITICAL**: Do **NOT** write imports like `from src.audit import ...` or `from src.telemetry import ...`. All SDK logic and clients are imported directly from the `fact0` package.
+* **TypeScript SDK**:
+  * **npm Package Name**: `@fact0/sdk`
+  * **Import Statement**: `import { Fact0Client } from "@fact0/sdk"`
+* **Go SDK**:
+  * **Module Path**: `github.com/fact0-ai/fact0-go`
+  * **Import Statement**: `import fact0 "github.com/fact0-ai/fact0-go"`
+
+---
+
+### 2. Python SDK API Details
+
+#### Instantiation
+```python
+import fact0
+
+# Synchronous client (defaults base_url to "https://api.fact0.io")
+client = fact0.Client(api_key="f0_live_...")
+
+# Asynchronous client (defaults base_url to "https://api.fact0.io")
+async_client = fact0.AsyncClient(api_key="f0_live_...")
+```
+
+#### Audit Event Logging (Synchronous)
+Use `client.audit.log(...)` or the convenience shortcut `client.log(...)` to append a single audit event to the tamper-evident ledger.
+```python
+client.audit.log(
+    actor={"id": "agent-1", "type": "agent", "email": "agent@acme.com"},
+    action="document.delete",
+    resource={"id": "doc_456", "type": "document", "name": "Q3 Report"},
+    outcome="success",  # "success" | "failure" | "error"
+    metadata={"deleted_by": "cleaner"},  # optional dict
+    timestamp=None,  # optional datetime (defaults to current time)
+    event_id=None,  # optional string UUID for idempotency
+)
+# Or: client.log(actor=..., action=..., resource=..., outcome=...)
+```
+
+#### Audit Event Logging (Asynchronous)
+**CRITICAL**: `AsyncClient` does **NOT** have a `client.log` convenience shortcut. You **MUST** use `await async_client.audit.log(...)`.
+```python
+await async_client.audit.log(
+    actor={"id": "agent-1", "type": "agent"},
+    action="document.delete",
+    resource={"id": "doc_456", "type": "document"},
+    outcome="success",
+)
+```
+
+#### Telemetry & Execution Tracing (Synchronous)
+Wrap agent runs and nested tasks using context managers:
+```python
+with client.telemetry.execution(
+    agent_id="research-bot",
+    agent_name="Research Bot",  # optional
+    trigger="user_query",  # optional
+    metadata={"query": "AI industry"}  # optional
+) as ex:
+    # Track model invocation or tool call
+    with ex.span("web_search", span_type="TOOL_CALL") as span:
+        span.log_event("query_submitted", {"q": "Fact0 audit"})
+        # Perform action...
+        span.complete(output={"results_count": 5})
+
+    with ex.span("gpt-4o", span_type="MODEL_INVOCATION") as span:
+        # Perform inference...
+        span.complete(output={"tokens_used": 125})
+```
+
+* **Valid Span Types**: `TOOL_CALL`, `MODEL_INVOCATION`, `STATE_MUTATION`, `HUMAN_APPROVAL`, `POLICY_EVALUATION`, `CUSTOM`.
+
+---
+
+### 3. TypeScript SDK API Details
+
+#### Instantiation
+```typescript
+import { Fact0Client } from "@fact0/sdk";
+
+const client = new Fact0Client({
+  apiKey: "f0_live_...",
+  baseUrl: "https://api.fact0.io" // optional
+});
+```
+
+#### Audit Event Logging
+```typescript
+await client.audit.log({
+  actor: { id: "user_123", type: "human" },
+  action: "invoice.approve",
+  resource: { id: "inv_99", type: "invoice" },
+  outcome: "success",
+  metadata: { amount: 5000 }
+});
+```
+
+#### Telemetry
+```typescript
+const ex = await client.telemetry.startExecution({
+  agentId: "support-bot",
+  trigger: "new_ticket"
+});
+
+// Log spans/events manually using:
+// client.telemetry.ingestSpans(ex.id, spans)
+// client.telemetry.ingestEvents(ex.id, events)
+
+await client.telemetry.endExecution(ex.id, "COMPLETED");
+```
+
+---
+
+### 4. Go SDK API Details
+
+#### Instantiation
+```go
+import fact0 "github.com/fact0-ai/fact0-go"
+
+client := fact0.NewClient(fact0.Config{
+    APIKey:  "f0_live_...",
+    BaseURL: "https://api.fact0.io", // optional
+})
+```
+
+#### Audit Event Logging
+```go
+err := client.Audit.Log(ctx, fact0.AuditEventInput{
+    Actor: fact0.ActorInput{
+        ID:   "system-cron",
+        Type: "system",
+    },
+    Action: "backup.create",
+    Resource: fact0.ResourceInput{
+        ID:   "db_replica_1",
+        Type: "database",
+    },
+    Outcome: "success",
+    Metadata: map[string]interface{}{
+        "size_bytes": 1048576,
+    },
+})
+```

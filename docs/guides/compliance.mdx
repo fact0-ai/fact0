@@ -42,12 +42,54 @@ To share this proof with a prospect's security team:
 
 Exports are themselves recorded as `audit.export` events for compliance.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor CISO as Enterprise CISO
+    actor Vendor as Vendor (Fact0 Customer)
+    participant F0 as Fact0 Cloud
+    
+    Vendor->>F0: Request Evidence Pack (GET /v1/export/evidence-pack)
+    Note over F0: Walk SHA-256 ledger chain & compile proof
+    F0->>F0: Generate Signed PDF & JSON Receipts
+    F0->>Vendor: Return ZIP Evidence Pack
+    Vendor->>CISO: Deliver Evidence Pack (ZIP / PDF)
+    CISO->>F0: Cryptographically Verify Chain (GET /v1/verify)
+    F0->>CISO: Chain Integrity Status (valid / invalid)
+```
+
 ---
 
-## Chain Verification
+## Chain Verification & Cryptographic Ledger Proof
 
-Any security auditor can verify that the audit log has not been tampered with or modified. 
+Any security auditor can verify that the audit log has not been tampered with or modified. Fact0 uses a cryptographic chaining mechanism similar to a blockchain's ledger to guarantee immutability.
 
+```mermaid
+graph LR
+    subgraph Ledger [Cryptographic Hash Chain]
+        direction LR
+        Ev0[Event N-2 <br/> payload] -->|Hash = H_n-2| Ev1[Event N-1 <br/> prev_hash = H_n-2 <br/> payload]
+        Ev1 -->|Hash = H_n-1| Ev2[Event N <br/> prev_hash = H_n-1 <br/> payload]
+        Ev2 -->|Hash = H_n| Root[Terminal Root Hash]
+    end
+    classDef default fill:#18181b,stroke:#3f3f46,stroke-width:1px,color:#fafafa;
+    classDef hashNode fill:#312e81,stroke:#6366f1,color:#fafafa;
+    class Ev0,Ev1,Ev2,Root hashNode;
+```
+
+### Hashing Algorithm
+For each event $E_n$ in the ledger, the cryptographic signature is calculated as follows:
+
+$$H_n = \text{SHA256}(E_n.\text{payload} \parallel H_{n-1})$$
+
+Where:
+- $E_n.\text{payload}$ consists of the canonical JSON representation of the `actor`, `action`, `resource`, `outcome`, `metadata`, and client-provided `timestamp` fields.
+- $H_{n-1}$ is the signature of the immediately preceding event in the sequence (`prev_hash`).
+- $\parallel$ represents string concatenation.
+
+Because each event's hash relies directly on the preceding event's hash, changing even a single character in a historic event will cascade down the chain, invalidating the final root hash.
+
+### Verification Flow
 Calling `GET /v1/verify?from=&to=` walks the SHA-256 chain and reports:
 * `valid` - chain intact
 * `events_checked` - count scanned
@@ -60,10 +102,13 @@ You can share a time-limited read-only link with your prospect's security team s
 
 ## Mapping to Controls & SOC 2
 
-| Control Area | Fact0 Capability |
-|--------------|----------------------|
-| **Tool Boundary Validation** | Cryptographic runtime trace of every tool call and permission scope |
-| **Data Leakage Audit** | Log of all actor and agent data egress paths |
-| **SOC 2 CC6.8 (Logical Access)** | Actor identity logged for every agent action |
-| **SOC 2 CC7.2 (System Monitoring)** | Continuous append-only log of all agent activity |
-| **SOC 2 CC9.2 (Risk Mitigation)** | Exportable evidence packs for procurement reviews |
+This index map shows how Fact0's Universal Fact Layer capabilities directly satisfy standard SOC 2 Trust Services Criteria (TSC) and common CISO safety controls:
+
+| TSC Control Area | Fact0 Capability | Audit Proof Evidence |
+| :--- | :--- | :--- |
+| **CC6.1 (Logical Access Boundaries)** | Tool call permission gating | `agent.tool.call` events, matching the specific sub-agent actor, resource scope, and outcome. |
+| **CC6.8 (Unauthorized / Rogue Actions)** | Runtime agent boundary auditing | Append-only logs showing all model inputs/outputs, verifying zero command injection or policy bypasses. |
+| **CC7.2 (Continuous System Monitoring)** | Real-time execution DAGs | Spans linked via `parent_span_id` trace the full dataflow logic, indicating where errors occurred. |
+| **CC9.2 (Operational Risk Mitigation)** | Human-in-the-loop approvals | Cryptographic human approvals (`approval.granted`) tied directly to high-risk transactions. |
+| **CC6.3 (Data Transmission & Egress)** | Data leakage tracing | Log of all actor identities, destination endpoints, and raw metadata payload logs. |
+

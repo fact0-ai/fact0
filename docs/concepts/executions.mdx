@@ -18,6 +18,25 @@ An **execution** is one end-to-end agent run. It contains **spans** (units of wo
 
 Spans link via `parent_span_id` and `caused_by_span_ids` forming a directed acyclic graph rendered in the dashboard with React Flow.
 
+```mermaid
+graph TD
+    ExecStart[Execution Started: trigger=user_query] --> ParentSpan[Parent Span: agent_loop <br/> CUSTOM]
+    ParentSpan --> SubSpan1[Span: web_search <br/> TOOL_CALL]
+    ParentSpan --> SubSpan2[Span: claude-3-5-sonnet <br/> MODEL_INVOCATION]
+    SubSpan2 --> SubSpan3[Span: human_approval <br/> HUMAN_APPROVAL]
+    
+    classDef default fill:#18181b,stroke:#3f3f46,stroke-width:1px,color:#fafafa;
+    classDef tool fill:#854d0e,stroke:#eab308,color:#fafafa;
+    classDef model fill:#1e3a8a,stroke:#3b82f6,color:#fafafa;
+    classDef approval fill:#14532d,stroke:#22c55e,color:#fafafa;
+    classDef custom fill:#27272a,stroke:#71717a,color:#fafafa;
+    
+    class SubSpan1 tool;
+    class SubSpan2 model;
+    class SubSpan3 approval;
+    class ParentSpan custom;
+```
+
 Query: `GET /api/v1/executions/{id}/dag`
 
 ## Replay

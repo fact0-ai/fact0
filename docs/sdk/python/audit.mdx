@@ -98,3 +98,88 @@ SSE iterator over `GET /v1/events/stream`.
 | `fact0.Fact0Error` | Base class |
 
 By default transport errors are logged and optionally written to dead-letter JSONL.
+
+---
+
+## Production Integration Recipes
+
+### 1. Production FastAPI lifespan Hook
+Always configure the `lifespan` hook to ensure the background batching workers are safely stopped and buffers are drained when the application shuts down.
+
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends
+import fact0
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize AsyncClient; it runs a background buffer worker
+    app.state.fact0 = fact0.AsyncClient(
+        api_key="f0_live_...",
+        sync=False # defaults to async background batching
+    )
+    yield
+    # CRITICAL: Close client on shutdown to drain all pending buffers
+    await app.state.fact0.close()
+
+app = FastAPI(lifespan=lifespan)
+
+# Helper to inject client into routers
+def get_fact0(request):
+    return request.app.state.fact0
+```
+
+### 2. Dead-Letter Queue (DLQ) Recovery & Replay
+If a network partition occurs and `dead_letter_path` is configured, Fact0 writes unsent events as JSONL rows to the specified file. Use this script to replay and re-submit them to the API once connectivity is restored:
+
+```python
+import json
+import fact0
+
+def replay_dead_letters(file_path: str, api_key: str):
+    client = fact0.Client(api_key=api_key, sync=True) # Use sync ingest for verification
+    replayed_count = 0
+    events = []
+    
+    with open(file_path, "r") as f:
+        for line in f:
+            if line.strip():
+                events.append(json.loads(line))
+                
+    # Batch replay up to 1000 events per call
+    for i in range(0, len(events), 1000):
+        batch = events[i:i+1000]
+        client.audit.log_batch(batch)
+        replayed_count += len(batch)
+        
+    client.close()
+    print(f"Successfully replayed {replayed_count} events from DLQ.")
+```
+
+### 3. Unit Testing & Mocking in pytest
+Do not send live HTTP requests to `api.fact0.io` during unit tests. Mock the transport or the client using this fixture:
+
+```python
+import pytest
+from unittest.mock import MagicMock
+import fact0
+
+@pytest.fixture
+def mock_fact0():
+    client = MagicMock(spec=fact0.Client)
+    client.audit = MagicMock()
+    client.telemetry = MagicMock()
+    return client
+
+def test_delete_document_service(mock_fact0):
+    # Your service function that takes client and deletes doc
+    # delete_document(doc_id="doc_123", fact0_client=mock_fact0)
+    
+    # Assert your application code called log with correct attributes
+    mock_fact0.audit.log.assert_called_once_with(
+        actor={"id": "admin", "type": "human"},
+        action="document.delete",
+        resource={"id": "doc_123", "type": "document"},
+        outcome="success"
+    )
+```

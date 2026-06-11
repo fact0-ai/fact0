@@ -14,6 +14,43 @@ Telemetry   →  "How did it happen? Why?"       (debugging)
 
 For high-value events (LLM spend, customer data access, refunds) log to **both**.
 
+```mermaid
+graph TD
+    Request[User Request] --> Agent[AI Agent Run]
+    
+    subgraph Telemetry Pipeline [Telemetry Pipeline: Observability]
+        Agent -->|1. Start Execution| Exec[Execution context]
+        Exec -->|2. Trace Steps| Spans[Spans: Model Call, Tool Call, State Mutation]
+        Exec -->|4. End Execution| ExecEnd[COMPLETED / FAILED Status]
+    end
+    
+    subgraph Audit Pipeline [Audit Pipeline: Compliance]
+        Agent -->|3. High-Value Action| AuditLog[Cryptographic Audit Log]
+        AuditLog -->|Immutable Chain| Ledger[SHA-256 Hash Chain]
+    end
+    
+    Spans -.->|Correlation: metadata.execution_id| AuditLog
+    classDef default fill:#18181b,stroke:#3f3f46,stroke-width:1px,color:#fafafa;
+    classDef telemetry fill:#1e3a8a,stroke:#3b82f6,color:#fafafa;
+    classDef audit fill:#312e81,stroke:#6366f1,color:#fafafa;
+    class Exec,Spans,ExecEnd telemetry;
+    class AuditLog,Ledger audit;
+```
+
+## Comparison Matrix
+
+| Dimension | Audit Log | Execution Telemetry |
+| :--- | :--- | :--- |
+| **Purpose** | Compliance, Security Proof, GRC Audits | Debugging, Traceability, Replay, Performance |
+| **Immutability** | Cryptographically chained (SHA-256) | Append-only tracing (no hash chain) |
+| **Ingest API** | `/v1/events` (Sync or Async) | `/api/v1/executions` (Async spans) |
+| **Target Audience** | Enterprise CISOs, Security Teams | AI Developers, System Operators |
+| **Key Metrics** | Access violations, spending bounds, approvals | Latency, token counts, model outputs, tool execution |
+
+## Correlation Best Practice
+
+When executing complex multi-agent steps, always include the telemetry `execution_id` inside the audit event's `metadata` dictionary. This enables auditors to verify that a specific action occurred (via the audit chain) and developers to inspect *how* it happened (via the execution DAG).
+
 ## Audit log
 
 - **Endpoints:** `/v1/events`, `/v1/events/batch`

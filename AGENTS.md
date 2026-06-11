@@ -28,9 +28,13 @@ Context for AI coding assistants working in the Fact0 SDK + docs repository.
 ### Python
 
 ```python
+import fact0
 from fact0 import Client, AsyncClient
 
-client = Client(api_key="alk_live_...")
+# WARNING: Do NOT import from non-existent local modules like `from src.audit import ...`.
+# All SDK functions and types must be imported directly from the `fact0` package.
+
+client = Client(api_key="f0_live_...")
 client.audit.log(actor={...}, action="...", resource={...}, outcome="success")
 client.telemetry.start_execution(...)
 ```

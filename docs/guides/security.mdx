@@ -33,6 +33,34 @@ Write routes reject read-only keys with `403 forbidden`.
 | Dashboard `/v1/me/*` | Better Auth JWT |
 | Telemetry `/api/v1/*` | Bearer API key (write for ingest; read for queries) |
 
+```mermaid
+graph TD
+    subgraph Clients [Clients]
+        Agent[AI Agent / Service]
+        Browser[Dashboard / User Browser]
+        Auditor[External CISO / Security Auditor]
+    end
+    
+    subgraph Fact0 API [Fact0 API Gateway]
+        AuthGate[DualAuth Verification Engine]
+        IngestService[Ingest pipeline]
+        QueryService[Query & Verification pipeline]
+    end
+    
+    Agent -->|1. Bearer Token: f0_live_... <br/> write scope| AuthGate
+    Browser -->|2. Better Auth JWT <br/> session scope| AuthGate
+    Auditor -->|3. Share Ticket <br/> read-only scope| AuthGate
+    
+    AuthGate -->|Ingest Events| IngestService
+    AuthGate -->|Verify & Export| QueryService
+    
+    classDef default fill:#18181b,stroke:#3f3f46,stroke-width:1px,color:#fafafa;
+    classDef gateway fill:#1e3a8a,stroke:#3b82f6,color:#fafafa;
+    classDef client fill:#27272a,stroke:#71717a,color:#fafafa;
+    class AuthGate gateway;
+    class Agent,Browser,Auditor client;
+```
+
 ## Key rotation
 
 1. Create a new key in **Settings → API Keys**
