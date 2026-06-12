@@ -37,6 +37,26 @@ asyncio.run(main())
 
 Telemetry methods are also available on `AsyncClient.telemetry`.
 
+## Async Telemetry
+
+When using `AsyncClient`, telemetry execution and span context managers are asynchronous and run completely non-blocking in the background:
+
+```python
+import asyncio
+import fact0
+
+async def main():
+    async with fact0.AsyncClient(api_key="f0_live_...") as client:
+        # Asynchronous execution tracing context manager
+        async with client.telemetry.execution(agent_id="research-bot") as ex:
+            # Asynchronous span context manager
+            async with ex.span("tool.search", span_type="TOOL_CALL") as span:
+                await span.log_event("query", {"q": "fact0"})
+                await span.complete(output={"hits": 5})
+
+asyncio.run(main())
+```
+
 ## FastAPI lifespan pattern
 
 ```python

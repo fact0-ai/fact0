@@ -69,7 +69,7 @@ graph TD
 
 ## Share links
 
-Time-bounded, read-only access to a subset of audit events. Tokens are bearer credentials - do not embed in URLs.
+Read-only public share links allow secure access to a specific subset of audit events. The generated link URL embeds a secure one-time secret token (e.g., `shr_ULID_SECRET`) which authorizes the auditor's browser to fetch the compliant views. Access can be revoked at any time from the dashboard.
 
 ## Data retention
 

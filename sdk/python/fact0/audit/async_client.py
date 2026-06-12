@@ -12,7 +12,7 @@ from typing import Any, Optional
 import httpx
 from pydantic import ValidationError as PydanticValidationError
 
-from .._http import DEFAULT_TIMEOUT_S, USER_AGENT
+from .._http import DEFAULT_TIMEOUT_S, USER_AGENT, AsyncHTTP
 from ..exceptions import TransportError, ValidationError
 from .models import Event
 
@@ -31,28 +31,26 @@ class AsyncAuditClient:
         sync: bool = False,
         client: httpx.AsyncClient | None = None,
     ):
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
-        self.sync = sync
-        self._client = client
-        self._owned = client is None
-        self.timeout_s = timeout_s
+        self._http = AsyncHTTP(
+            base_url,
+            api_key,
+            timeout_s=timeout_s,
+            sync_ingest=sync,
+            client=client,
+        )
         self._buf: list[dict[str, Any]] = []
 
-    async def _get_client(self) -> httpx.AsyncClient:
-        if self._client is None:
-            self._client = httpx.AsyncClient(timeout=self.timeout_s)
-        return self._client
+    @property
+    def base_url(self) -> str:
+        return self._http.base_url
 
-    def _headers(self) -> dict[str, str]:
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": USER_AGENT,
-        }
-        if self.sync:
-            headers["X-Fact0-Sync"] = "true"
-        return headers
+    @property
+    def api_key(self) -> str:
+        return self._http.api_key or ""
+
+    @property
+    def sync(self) -> bool:
+        return self._http.sync_ingest
 
     async def _request(
         self,
@@ -63,17 +61,13 @@ class AsyncAuditClient:
         params: dict[str, Any] | None = None,
         expect_json: bool = True,
     ) -> Any:
-        client = await self._get_client()
-        url = f"{self.base_url}{path}"
-        resp = await client.request(method, url, json=json_body, params=params, headers=self._headers())
-        if resp.status_code >= 300:
-            raise TransportError(f"{method} {path} -> {resp.status_code}", status_code=resp.status_code)
-        if not expect_json:
-            return resp.content
-        try:
-            return resp.json()
-        except ValueError:
-            return {}
+        return await self._http.request(
+            method,
+            path,
+            json_body=json_body,
+            params=params,
+            expect_json=expect_json,
+        )
 
     async def log(self, **fields: Any) -> None:
         wire = self._validate(**fields)
@@ -87,9 +81,7 @@ class AsyncAuditClient:
 
     async def close(self) -> None:
         await self.flush()
-        if self._owned and self._client is not None:
-            await self._client.aclose()
-            self._client = None
+        await self._http.close()
 
     async def get_event(self, event_id: str) -> dict[str, Any]:
         return await self._request("GET", f"/v1/events/{event_id}")

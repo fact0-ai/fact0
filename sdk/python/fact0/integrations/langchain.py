@@ -64,13 +64,61 @@ class Fact0CallbackHandler:
                 serialized.get("name", "llm"), span_type="MODEL_INVOCATION"
             )
             span.__enter__()
+            if prompts:
+                setattr(span, "_prompt_text", "\n".join(prompts))
             self._spans[run_id] = span
 
     def on_llm_end(self, response: Any, **kwargs: Any) -> None:
         run_id = kwargs.get("run_id")
         span = self._spans.pop(run_id, None) if run_id else None
         if span:
-            span.complete(output={"text": str(response)[:500]})
+            model_name = "unknown"
+            prompt_tokens = 0
+            completion_tokens = 0
+            total_tokens = 0
+
+            llm_output = getattr(response, "llm_output", None) or {}
+            if isinstance(llm_output, dict):
+                model_name = llm_output.get("model_name", model_name)
+                token_usage = llm_output.get("token_usage")
+                if isinstance(token_usage, dict):
+                    prompt_tokens = token_usage.get("prompt_tokens", 0)
+                    completion_tokens = token_usage.get("completion_tokens", 0)
+                    total_tokens = token_usage.get("total_tokens", 0)
+
+            text_output = ""
+            generations = getattr(response, "generations", [])
+            if generations and len(generations) > 0 and len(generations[0]) > 0:
+                text_output = getattr(generations[0][0], "text", "")
+
+            model_invocation: dict[str, Any] = {
+                "model_name": model_name,
+                "model_provider": "langchain",
+                "prompt_tokens": int(prompt_tokens),
+                "completion_tokens": int(completion_tokens),
+                "total_tokens": int(total_tokens),
+            }
+
+            prompt_text = getattr(span, "_prompt_text", "")
+            if prompt_text:
+                model_invocation["prompt"] = {
+                    "inline": prompt_text,
+                    "size_bytes": len(prompt_text),
+                    "content_type": "text/plain",
+                }
+
+            if text_output:
+                model_invocation["completion"] = {
+                    "inline": text_output,
+                    "size_bytes": len(text_output),
+                    "content_type": "text/plain",
+                }
+
+            span.complete(
+                status="COMPLETED",
+                model_invocation=model_invocation,
+                audit=self._audit_sensitive,
+            )
 
     def on_tool_start(self, serialized: dict, input_str: str, **kwargs: Any) -> None:
         self._ensure_execution()
@@ -93,4 +141,4 @@ class Fact0CallbackHandler:
         run_id = kwargs.get("run_id")
         span = self._spans.pop(run_id, None) if run_id else None
         if span:
-            span.complete(output={"result": output[:500]})
+            span.complete(output={"result": output[:500]}, audit=False)

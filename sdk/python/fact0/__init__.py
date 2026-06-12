@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ._http import DEFAULT_BASE_URL, SyncHTTP, env_api_key
+from ._http import DEFAULT_BASE_URL, SyncHTTP, AsyncHTTP, env_api_key
 from .audit.async_client import AsyncAuditClient
 from .audit.client import AuditClient
 from .audit.models import Actor, ActorType, Outcome, Resource
@@ -14,7 +14,7 @@ from .exceptions import (
     TransportError,
     ValidationError,
 )
-from .telemetry.client import TelemetryClient
+from .telemetry.client import TelemetryClient, AsyncTelemetryClient
 
 __version__ = "1.0.3"
 
@@ -24,6 +24,7 @@ __all__ = [
     "AuditClient",
     "AsyncAuditClient",
     "TelemetryClient",
+    "AsyncTelemetryClient",
     "Actor",
     "Resource",
     "Outcome",
@@ -57,7 +58,7 @@ class Client:
                 audit_kwargs["transport"] = custom_transport
         self._http = http
         self.audit = AuditClient(http, **audit_kwargs)
-        self.telemetry = TelemetryClient(http)
+        self.telemetry = TelemetryClient(http, audit_client=self.audit)
 
     def close(self) -> None:
         self.audit.close()
@@ -87,13 +88,14 @@ class AsyncClient:
         resolved_base = (base_url or DEFAULT_BASE_URL).rstrip("/")
         self.audit = AsyncAuditClient(resolved_base, resolved_key, sync=sync)
         self._base_url = resolved_base
-        self.telemetry = TelemetryClient(
-            SyncHTTP(resolved_base, resolved_key, sync_ingest=sync)
+        self.telemetry = AsyncTelemetryClient(
+            AsyncHTTP(resolved_base, resolved_key, sync_ingest=sync),
+            audit_client=self.audit,
         )
 
     async def close(self) -> None:
         await self.audit.close()
-        self.telemetry.close()
+        await self.telemetry.close()
 
     async def __aenter__(self) -> AsyncClient:
         return self

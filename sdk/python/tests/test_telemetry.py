@@ -41,3 +41,75 @@ def test_get_execution(mock_server) -> None:
     req = mock_server.received[0]
     assert req["method"] == "GET"
     assert req["path"] == "/api/v1/executions/exec_456"
+
+
+def test_telemetry_auto_audit(mock_server) -> None:
+    from fact0 import Client
+
+    client = Client(
+        api_key="f0_live_test",
+        base_url=mock_server.url,
+        sync=True,
+    )
+
+    def responder(req):
+        if req["path"] == "/api/v1/executions" and req["method"] == "POST":
+            return 200, b'{"id": "exec_auto_123"}'
+        return 200, b'{"receipt_id": "r_123", "status": "committed"}'
+
+    mock_server.set_responder(responder)
+
+    with client.telemetry.execution(agent_id="my_agent") as exec_ctx:
+        with exec_ctx.span("my_model_span", span_type="MODEL_INVOCATION") as span:
+            span.complete(
+                model_invocation={
+                    "model_name": "gpt-4o",
+                    "total_tokens": 150,
+                }
+            )
+
+    client.close()
+
+    paths = [req["path"] for req in mock_server.received]
+    assert "/api/v1/executions" in paths
+    assert "/v1/events/batch" in paths
+
+    audit_req = next(r for r in mock_server.received if r["path"] == "/v1/events/batch")
+    event = audit_req["json"]["events"][0]
+    assert event["actor"]["id"] == "my_agent"
+    assert event["action"] == "agent.model.invoke"
+    assert event["metadata"]["execution_id"] == "exec_auto_123"
+    assert event["metadata"]["model"] == "gpt-4o"
+
+
+def test_async_telemetry_flow(mock_server) -> None:
+    import asyncio
+    from fact0 import AsyncClient
+
+    def responder(req):
+        if req["path"] == "/api/v1/executions" and req["method"] == "POST":
+            return 200, b'{"id": "exec_async_123"}'
+        return 200, b'{"receipt_id": "r_123", "status": "committed"}'
+
+    mock_server.set_responder(responder)
+
+    async def run() -> None:
+        async with AsyncClient(
+            api_key="f0_live_test",
+            base_url=mock_server.url,
+            sync=True,
+        ) as client:
+            async with client.telemetry.execution(agent_id="async_agent") as exec_ctx:
+                assert exec_ctx.id == "exec_async_123"
+                async with exec_ctx.span("async_span", span_type="TOOL_CALL") as span:
+                    await span.log_event("step_1", {"status": "ok"})
+                    await span.complete(tool_call={"tool_name": "calc"})
+
+    asyncio.run(run())
+
+    # Check request paths
+    paths = [req["path"] for req in mock_server.received]
+    assert "/api/v1/executions" in paths
+    assert "/api/v1/executions/exec_async_123/spans" in paths
+    assert "/api/v1/executions/exec_async_123/events" in paths
+    assert "/api/v1/executions/exec_async_123/end" in paths

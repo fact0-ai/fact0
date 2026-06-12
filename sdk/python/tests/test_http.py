@@ -65,3 +65,48 @@ def test_client_default_base_url() -> None:
 def test_client_custom_base_url() -> None:
     client = Client(api_key="alk_live_test", base_url="http://localhost:8000/")
     assert client._http.base_url == "http://localhost:8000"
+
+
+def test_async_http_flow(mock_server) -> None:
+    import asyncio
+    from fact0._http import AsyncHTTP
+
+    async def run() -> None:
+        http = AsyncHTTP(mock_server.url, "alk_live_test", max_retries=0)
+        try:
+            body = await http.request("GET", "/v1/events")
+            assert body == {"accepted": 0, "rejected": 0, "ids": []}
+        finally:
+            await http.close()
+
+    asyncio.run(run())
+
+    req = mock_server.received[0]
+    assert req["method"] == "GET"
+    assert req["auth"] == "Bearer alk_live_test"
+
+
+def test_async_http_retries_then_succeeds(mock_server) -> None:
+    import asyncio
+    from fact0._http import AsyncHTTP
+
+    state = {"calls": 0}
+
+    def responder(_: dict) -> tuple[int, bytes]:
+        state["calls"] += 1
+        if state["calls"] == 1:
+            return 503, b'{"error":"unavailable"}'
+        return 200, b'{"ok": true}'
+
+    mock_server.set_responder(responder)
+
+    async def run() -> None:
+        http = AsyncHTTP(mock_server.url, "alk_live_test", max_retries=2, backoff_base_s=0.01)
+        try:
+            body = await http.request("GET", "/v1/events")
+            assert body == {"ok": True}
+        finally:
+            await http.close()
+
+    asyncio.run(run())
+    assert state["calls"] == 2
