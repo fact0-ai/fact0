@@ -5,6 +5,42 @@ description: SDK and API release notes.
 
 # Changelog
 
+## v1.2.1 - 2026-06-13
+
+### LLM Traces Dashboard Page
+- New **LLM Traces** page added to the dashboard (`/dashboard/llm-traces`) and the public demo (`/demo/dashboard/llm-traces`).
+- Surfaces model invocation spans with token counts, latency, prompt/completion previews, and model metadata extracted from both native SDK spans and OpenTelemetry GenAI semantic conventions.
+
+### Database-Level Audit Immutability (Migration 023)
+- Added PostgreSQL trigger function `audit_events_reject_chain_changes` that enforces immutability on **all** audit event data columns — including `actor_email`, `resource_name`, and `metadata` — in addition to the previously protected hash-chain columns.
+- In re-anchor mode (controlled by the `fact0.reanchor_mode` session GUC) only `hash` and `prev_hash` may be recomputed; all data columns remain frozen even during re-anchoring.
+- Run `make migrate-up` or apply `023_immutable_audit_columns.up.sql` against your database to activate.
+
+### Share Link Token Reveal UI
+- Settings → **Share Links** now shows a one-time **Reveal token** button per link.
+- The full bearer token (`shr_ULID_SECRET`) is fetched on demand and displayed in a masked, copy-to-clipboard field — it is never stored in the browser or sent before the user explicitly requests it.
+
+### Bug Fix: JWT Audience Validation Regression
+- Reverted an over-strict audience (`aud`) check introduced in the previous commit that incorrectly required an `aud` claim in every JWT. Better Auth's JWT plugin sets only `azp`; the `aud` field is not emitted. All dashboard sessions were returning `401 invalid or expired token` after the bad change. Fixed by restoring the original `azp`-only allowlist check.
+
+### OpenTelemetry Instrumentation
+- Added `web/instrumentation.ts` to capture Next.js server-side traces via `@vercel/otel`, routing them to the Fact0 OTLP endpoint for unified trace storage alongside agent telemetry.
+
+### Evidence Pack Public Keys
+- Ed25519 public keys are now embedded in the manifest of every exported PDF / ZIP evidence pack, enabling recipients to verify the digital signature offline without contacting the Fact0 API.
+
+---
+
+## SDK v1.0.4 - 2026-06-13
+
+### Python SDK
+
+- **Async telemetry client** (`AsyncTelemetryClient`): fully `asyncio`-compatible telemetry client with an async background worker queue, async execution and span context managers (`async with client.telemetry.execution(...) as ex`), and proper `await` chains throughout.
+- **Fixed generic type annotations**: `queue.Queue` and `asyncio.Queue` / `asyncio.Task` declarations now carry explicit type parameters (`Queue[Any]`, `Task[Any]`) to satisfy `mypy --strict`. No runtime behaviour change.
+- **Docs**: `sdk/python/async.mdx` updated with async telemetry examples and a FastAPI lifespan pattern.
+
+---
+
 ## v1.2.0 - 2026-05-31
 
 ### GDPR-Compliant Full Purge
