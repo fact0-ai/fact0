@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const userAgent = "fact0-go/1.0.2"
+const userAgent = "fact0-go/1.0.3"
 
 // DefaultBaseURL is the production Fact0 API origin.
 // Override via Config.BaseURL for local development or private deployments.
@@ -29,9 +29,9 @@ type Config struct {
 
 // Client is the unified Fact0 SDK client.
 type Client struct {
-	http   *http.Client
-	cfg    Config
-	Audit  *AuditClient
+	http      *http.Client
+	cfg       Config
+	Audit     *AuditClient
 	Telemetry *TelemetryClient
 }
 
@@ -92,8 +92,13 @@ func (c *Client) doJSON(ctx context.Context, method, path string, in any, out an
 			time.Sleep(time.Duration(200*(1<<attempt)) * time.Millisecond)
 			continue
 		}
-		defer resp.Body.Close()
-		data, _ := io.ReadAll(resp.Body)
+		data, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			time.Sleep(time.Duration(200*(1<<attempt)) * time.Millisecond)
+			continue
+		}
 		if resp.StatusCode < 300 {
 			if out == nil {
 				return nil

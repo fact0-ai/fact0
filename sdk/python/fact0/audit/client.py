@@ -162,13 +162,13 @@ class AuditClient:
                         yield json.loads(payload)
 
     def _validate_event(self, **kwargs: Any) -> dict[str, Any]:
-        kwargs.pop("event_id", None)
         if kwargs.get("metadata") is None:
             kwargs.pop("metadata", None)
-        if "event_id" in kwargs and kwargs["event_id"]:
+        if kwargs.get("event_id"):
             kwargs["id"] = kwargs.pop("event_id")
         elif "id" not in kwargs:
             kwargs["id"] = str(uuid.uuid4())
+        kwargs.pop("event_id", None)
         return self._validate_wire(kwargs)
 
     def _validate_wire(self, fields: dict[str, Any]) -> dict[str, Any]:

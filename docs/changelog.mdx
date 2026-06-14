@@ -5,6 +5,16 @@ description: SDK and API release notes.
 
 # Changelog
 
+## SDK v1.0.5 / v1.0.3 - 2026-06-14
+
+### Python SDK (v1.0.5)
+- **Fixed event_id preservation**: Corrected a bug in the synchronous `AuditClient._validate_event` that was unconditionally discarding user-supplied `event_id` parameters, which broke custom idempotency keys.
+
+### Go SDK (v1.0.3)
+- **Resolved response body socket leak**: Fixed a file descriptor/socket leak inside `client.go`'s HTTP retry loop by ensuring the HTTP response body is closed immediately on each attempt rather than being deferred until the enclosing function returns.
+
+---
+
 ## v1.2.1 - 2026-06-13
 
 ### LLM Traces Dashboard Page
