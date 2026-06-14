@@ -1,0 +1,516 @@
+---
+title: "Prompt for AI coding agents"
+sidebarTitle: "Agent Prompt"
+description: "Copy this prompt into Cursor, Antigravity, GitHub Copilot, or any AI coding assistant to get a full Fact0 integration in one shot."
+icon: "sparkles"
+---
+
+Give this prompt to your AI coding agent (Cursor, Antigravity, GitHub Copilot, Windsurf, Cline, etc.) and it will have everything it needs to integrate Fact0 into your project correctly.
+
+<Tip>
+  Copy the entire block below and paste it into your agent's system prompt, rules file (`.cursorrules`, `AGENTS.md`, `CLAUDE.md`), or conversation context.
+</Tip>
+
+---
+
+## The Prompt
+
+<Accordion title="Click to expand the full agent prompt">
+
+````markdown
+# Fact0 Integration Guide for AI Coding Agents
+
+You are integrating **Fact0** — a tamper-evident audit log and execution telemetry platform for AI agents.
+
+- **Docs:** https://docs.fact0.io
+- **API base:** https://api.fact0.io
+- **Dashboard:** https://app.fact0.io
+- **Full LLM context:** https://docs.fact0.io/llms-full.txt
+
+---
+
+## 1. Installation
+
+### Python
+```bash
+pip install fact0-sdk
+```
+> **CRITICAL**: The PyPI package is `fact0-sdk`, NOT `fact0`. The import is `import fact0`.
+
+### TypeScript / Node.js
+```bash
+npm install @fact0/sdk
+```
+
+### Go
+```bash
+go get github.com/fact0-ai/fact0-go
+```
+
+---
+
+## 2. Authentication
+
+Get an API key from https://app.fact0.io → Settings → API Keys.
+
+Keys are prefixed `f0_live_…` or `alk_live_…`. They have a **scope**:
+- `write` — can append audit events and ingest telemetry
+- `read` — can query events, verify chains, export PDFs
+
+Set the key via environment variable or constructor:
+```bash
+export FACT0_API_KEY="f0_live_..."
+```
+
+---
+
+## 3. Core Concepts
+
+Fact0 has **two pipelines** — use both together for full coverage:
+
+| Pipeline | Purpose | When to use |
+|----------|---------|-------------|
+| **Audit Log** | Tamper-evident, hash-chained compliance ledger | Every action that matters for security reviews: tool calls, data access, approvals, policy checks |
+| **Telemetry** | Execution tracing with spans, DAGs, and replay | Debugging agent runs: model invocations, tool calls, state mutations, timing |
+
+### Audit Event Shape
+Every audit event has these required fields:
+```json
+{
+  "actor":    {"id": "agent-1", "type": "agent"},
+  "action":   "document.delete",
+  "resource": {"id": "doc_456", "type": "document", "name": "Q3 Report"},
+  "outcome":  "success"
+}
+```
+
+- **Actor types**: `"human"`, `"agent"`, `"system"`
+- **Outcomes**: `"success"`, `"failure"`, `"error"`
+- **metadata**: optional `dict` for extra context (IP, tokens, model name, etc.)
+
+### Telemetry Span Types
+```
+TOOL_CALL          — external tool/API invocation
+MODEL_INVOCATION   — LLM inference call
+STATE_MUTATION     — agent memory/state write
+HUMAN_APPROVAL     — human-in-the-loop decision gate
+POLICY_EVALUATION  — guardrail or policy check
+CUSTOM             — any other span
+```
+
+---
+
+## 4. Python SDK — Full API Reference
+
+### Client Setup
+```python
+import fact0
+
+# Sync client (recommended for most use cases)
+client = fact0.Client(api_key="f0_live_...")
+
+# Async client
+async_client = fact0.AsyncClient(api_key="f0_live_...")
+```
+
+The client auto-reads `FACT0_API_KEY` from env if no key is passed.
+
+### Audit Logging
+```python
+# Simple one-liner
+client.audit.log(
+    actor={"id": "my-agent", "type": "agent"},
+    action="invoice.approve",
+    resource={"id": "inv_99", "type": "invoice", "name": "Q3 Invoice"},
+    outcome="success",
+    metadata={"amount_usd": 5000, "approver": "auto"},
+)
+
+# Convenience shortcut (sync only)
+client.log(actor=..., action=..., resource=..., outcome=...)
+
+# Batch (up to 1000 events)
+client.audit.log_batch([
+    {"actor": {...}, "action": "...", "resource": {...}, "outcome": "success"},
+    # ...
+])
+
+# Flush pending events (client batches in background)
+client.audit.flush()
+```
+
+### Audit Queries & Verification
+```python
+# List events with filters
+events = client.audit.list_events(
+    action="document.delete",
+    actor_id="agent-1",
+    outcome="failure",
+    page=1,
+    page_size=50,
+)
+
+# Get single event
+event = client.audit.get_event("evt_01HX3K...")
+
+# Verify hash chain integrity
+result = client.audit.verify()
+# → {"valid": True, "events_checked": 31847, "root_hash": "sha256:..."}
+
+# Verify single event hash
+client.audit.verify_event("evt_01HX3K...")
+
+# Export SOC 2-style PDF audit pack
+pdf_bytes = client.audit.export_pdf(from_="2024-01-01", to="2024-06-01")
+
+# Export evidence ZIP
+zip_bytes = client.audit.export_evidence_pack(from_="2024-01-01", to="2024-06-01")
+
+# Live SSE stream
+for event in client.audit.stream_events():
+    print(event)
+```
+
+### Execution Telemetry
+```python
+# Context-manager style (recommended)
+with client.telemetry.execution(
+    agent_id="research-bot",
+    agent_name="Research Bot",
+    trigger="user_query",
+    metadata={"query": "market analysis"},
+) as ex:
+    # Track a tool call
+    with ex.span("web_search", span_type="TOOL_CALL") as span:
+        span.log_event("query_submitted", {"q": "AI market trends"})
+        results = do_search(...)
+        span.complete(
+            output={"results_count": len(results)},
+            tool_call={
+                "tool_name": "web_search",
+                "duration_ms": 320,
+                "input": {"inline": {"q": "AI market trends"}, "size_bytes": 48},
+                "output": {"inline": results, "size_bytes": 1024},
+            },
+        )
+
+    # Track an LLM call
+    with ex.span("gpt-4o", span_type="MODEL_INVOCATION") as span:
+        response = call_llm(...)
+        span.complete(
+            output={"summary": response.text[:200]},
+            model_invocation={
+                "model_name": "gpt-4o",
+                "model_provider": "openai",
+                "prompt_tokens": 820,
+                "completion_tokens": 190,
+                "total_tokens": 1010,
+                "latency_ms": 1240,
+                "temperature": 0.2,
+            },
+        )
+
+    # Track a policy check
+    with ex.span("pii_guard", span_type="POLICY_EVALUATION") as span:
+        span.complete(
+            policy_evaluation={
+                "policy_name": "pii-redaction",
+                "result": "pass",
+            },
+        )
+
+    # Track a human approval gate
+    with ex.span("manager_approval", span_type="HUMAN_APPROVAL") as span:
+        span.complete(
+            human_approval={
+                "approver_id": "user_reviewer",
+                "decision": "approved",
+                "comment": "LGTM",
+            },
+        )
+
+# Execution auto-ends with COMPLETED/FAILED based on exceptions
+```
+
+### Manual Telemetry (lower-level)
+```python
+# Start execution
+exec_data = client.telemetry.start_execution(
+    agent_id="my-agent",
+    agent_name="My Agent",
+    trigger="cron",
+)
+execution_id = exec_data["id"]
+
+# Ingest spans manually
+client.telemetry.ingest_spans(execution_id, [
+    {
+        "id": "span_001",
+        "execution_id": execution_id,
+        "span_type": "TOOL_CALL",
+        "name": "web_search",
+        "status": "COMPLETED",
+        "started_at": "2024-01-01T00:00:00Z",
+        "ended_at": "2024-01-01T00:00:01Z",
+        "parent_span_id": None,  # optional, for nested DAGs
+    }
+])
+
+# Ingest events (timeline events within a span)
+client.telemetry.ingest_events(execution_id, [
+    {
+        "id": "evt_001",
+        "execution_id": execution_id,
+        "span_id": "span_001",
+        "event_type": "query_submitted",
+        "timestamp": "2024-01-01T00:00:00Z",
+        "payload": {"q": "search query"},
+    }
+])
+
+# End execution
+client.telemetry.end_execution(execution_id, "COMPLETED")
+```
+
+### Async Client
+```python
+async with fact0.AsyncClient(api_key="f0_live_...") as client:
+    # IMPORTANT: AsyncClient does NOT have client.log() shortcut
+    await client.audit.log(
+        actor={"id": "agent-1", "type": "agent"},
+        action="document.read",
+        resource={"id": "doc_123", "type": "document"},
+        outcome="success",
+    )
+
+    async with client.telemetry.execution(
+        agent_id="my-agent",
+    ) as ex:
+        async with ex.span("search", span_type="TOOL_CALL") as span:
+            await span.complete(output={"result": "found"})
+```
+
+### Cleanup
+```python
+# Always flush and close when done
+client.flush()   # flushes both audit + telemetry queues
+client.close()   # stops background workers
+```
+
+---
+
+## 5. TypeScript SDK
+
+```typescript
+import { Fact0Client } from "@fact0/sdk";
+
+const client = new Fact0Client({
+  apiKey: "f0_live_...",
+  baseUrl: "https://api.fact0.io",  // optional, this is the default
+});
+
+// Audit logging
+await client.audit.log({
+  actor: { id: "user_123", type: "human" },
+  action: "invoice.approve",
+  resource: { id: "inv_99", type: "invoice" },
+  outcome: "success",
+  metadata: { amount: 5000 },
+});
+
+// Telemetry
+const ex = await client.telemetry.startExecution({
+  agentId: "support-bot",
+  trigger: "new_ticket",
+});
+await client.telemetry.ingestSpans(ex.id, [{ ... }]);
+await client.telemetry.endExecution(ex.id, "COMPLETED");
+```
+
+---
+
+## 6. Go SDK
+
+```go
+import fact0 "github.com/fact0-ai/fact0-go"
+
+client := fact0.NewClient(fact0.Config{
+    APIKey:  "f0_live_...",
+    BaseURL: "https://api.fact0.io",
+})
+
+err := client.Audit.Log(ctx, fact0.AuditEventInput{
+    Actor:    fact0.ActorInput{ID: "system-cron", Type: "system"},
+    Action:   "backup.create",
+    Resource: fact0.ResourceInput{ID: "db_1", Type: "database"},
+    Outcome:  "success",
+    Metadata: map[string]interface{}{"size_bytes": 1048576},
+})
+```
+
+---
+
+## 7. Framework Integrations
+
+### LangChain
+```python
+from fact0.integrations.langchain import Fact0CallbackHandler
+
+handler = Fact0CallbackHandler(
+    client=client,
+    agent_id="my-langchain-agent",
+    audit_sensitive_actions=True,  # logs tool calls and LLM invocations to audit
+)
+
+# Pass as callback to any LangChain chain/agent
+chain.invoke({"input": "..."}, config={"callbacks": [handler]})
+```
+
+### FastAPI Middleware
+```python
+from fact0.integrations.fastapi import AuditMiddleware
+
+app.add_middleware(
+    AuditMiddleware,
+    client_factory=lambda: client.audit,
+    action_prefix="api",
+)
+# Every HTTP request is now logged as an audit event
+```
+
+### OpenTelemetry (Zero code changes)
+Point any OTel SDK or Collector at Fact0:
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.fact0.io"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer f0_live_..."
+```
+Docs: https://docs.fact0.io/integrations/opentelemetry
+
+---
+
+## 8. REST API Quick Reference
+
+### Audit API (base: https://api.fact0.io)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/v1/events` | write | Append single event (async, returns receipt_id) |
+| POST | `/v1/events/batch` | write | Append up to 1000 events |
+| GET | `/v1/events` | read | List/filter events |
+| GET | `/v1/events/{id}` | read | Get single event |
+| GET | `/v1/events/{id}/verify` | read | Verify single event hash |
+| GET | `/v1/verify` | read | Verify full chain integrity |
+| GET | `/v1/events/stream` | read | Live SSE stream |
+| GET | `/v1/export/pdf` | read | SOC 2 PDF audit pack |
+| GET | `/v1/export/evidence-pack` | read | ZIP evidence pack |
+| GET | `/v1/receipts/{id}` | read | Poll async ingest receipt |
+
+### Telemetry API (base: https://api.fact0.io)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/executions` | Start execution |
+| POST | `/api/v1/executions/{id}/spans` | Ingest spans |
+| POST | `/api/v1/executions/{id}/events` | Ingest events |
+| PUT | `/api/v1/executions/{id}/end` | End execution |
+| GET | `/api/v1/executions` | List executions |
+| GET | `/api/v1/executions/{id}` | Get execution |
+| GET | `/api/v1/executions/{id}/spans` | Get spans |
+| GET | `/api/v1/executions/{id}/dag` | Get execution DAG |
+| GET | `/api/v1/executions/{id}/replay` | Replay execution |
+
+Auth header: `Authorization: Bearer f0_live_...` or `Authorization: Bearer alk_live_...`
+
+---
+
+## 9. Best Practices
+
+1. **Dual-log high-value actions** — log to BOTH audit AND telemetry for tool calls, model invocations, and data access.
+2. **Use context managers** — `with client.telemetry.execution(...)` auto-handles start/end and error status.
+3. **Always call `client.flush()`** before process exit — the SDK batches in background threads.
+4. **Use `parent_span_id`** for nested spans to build accurate DAGs in the dashboard.
+5. **Set `agent_name`** on executions — it shows in the dashboard UI as a human-readable label.
+6. **Include `metadata`** on both audit events and spans — it's searchable and visible in the dashboard.
+7. **Actor types matter** — use `"human"` for user actions, `"agent"` for AI actions, `"system"` for cron/infra.
+8. **Async ingest is default** — POST to `/v1/events` returns `202` with a `receipt_id`. Use `X-Fact0-Sync: true` header for synchronous commit if needed.
+
+---
+
+## 10. Common Patterns
+
+### Wrap every agent run
+```python
+def handle_request(user_input: str):
+    client.audit.log(
+        actor={"id": "support-agent", "type": "agent"},
+        action="agent.run.started",
+        resource={"id": run_id, "type": "agent.execution"},
+        outcome="success",
+        metadata={"input": user_input[:200]},
+    )
+
+    with client.telemetry.execution(
+        agent_id="support-agent",
+        trigger="user_message",
+        metadata={"input": user_input[:120]},
+    ) as ex:
+        # ... agent logic with spans ...
+        pass
+
+    client.audit.log(
+        actor={"id": "support-agent", "type": "agent"},
+        action="agent.run.completed",
+        resource={"id": run_id, "type": "agent.execution"},
+        outcome="success",
+    )
+```
+
+### Log PII access for compliance
+```python
+client.audit.log(
+    actor={"id": "support-agent", "type": "agent"},
+    action="pii.access",
+    resource={"id": "acct_7f2a", "type": "account", "name": "Customer Account"},
+    outcome="success",
+    metadata={"fields": ["email", "phone"], "reason": "support_inquiry"},
+)
+```
+
+### Verify chain integrity programmatically
+```python
+result = client.audit.verify()
+if not result["valid"]:
+    alert(f"Chain broken at event {result.get('first_broken_event_id')}")
+```
+````
+
+</Accordion>
+
+---
+
+## How to Use
+
+<Steps>
+  <Step title="Copy the prompt">
+    Expand the accordion above and copy the entire markdown block.
+  </Step>
+  <Step title="Paste into your agent">
+    Add it to your AI coding tool:
+    - **Cursor** → `.cursorrules` file in project root
+    - **Antigravity** → `AGENTS.md` or paste directly in conversation
+    - **GitHub Copilot** → `.github/copilot-instructions.md`
+    - **Cline / Windsurf** → System prompt or rules file
+    - **Claude / ChatGPT** → Paste as context at the start of your conversation
+  </Step>
+  <Step title="Ask your agent to integrate">
+    Example prompts that work well:
+    - *"Add Fact0 audit logging to every tool call in my agent"*
+    - *"Wrap my LangChain agent with Fact0 telemetry and audit trails"*
+    - *"Add execution tracing to my FastAPI agent endpoint"*
+    - *"Set up Fact0 to track all LLM invocations with token counts"*
+  </Step>
+</Steps>
+
+<Info>
+  For the most up-to-date machine-readable context, you can also point your agent to:
+  - **`https://docs.fact0.io/llms.txt`** — compact SDK reference
+  - **`https://docs.fact0.io/llms-full.txt`** — complete documentation dump
+</Info>

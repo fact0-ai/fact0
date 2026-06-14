@@ -27,6 +27,7 @@ API base URL: `https://api.fact0.io`
 
 ## Guides
 
+- [Agent Prompt for AI Coding Assistants](/guides/agent-prompt) — copy-paste prompt for Cursor, Antigravity, Copilot, etc.
 - [Compliance](/guides/compliance)
 - [Security](/guides/security)
 - [Rate limits](/guides/rate-limits)
