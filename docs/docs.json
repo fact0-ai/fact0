@@ -56,6 +56,17 @@
         ]
       },
       {
+        "tab": "Agent Prompt",
+        "groups": [
+          {
+            "group": "AI Agent Integration",
+            "pages": [
+              "guides/agent-prompt"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Fact0 Platform",
         "groups": [
           {

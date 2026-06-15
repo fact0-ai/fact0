@@ -25,6 +25,7 @@ endef
 .PHONY: tag-python tag-typescript tag-go tag-all
 .PHONY: push-python push-typescript push-go push-all
 .PHONY: release-all test-python test-typescript test-go test-all
+.PHONY: docs-dev docs-validate
 
 help: ## Show available targets
 	@echo "Fact0 SDK release helpers"
@@ -92,3 +93,9 @@ test-go: ## Run Go SDK tests
 	cd sdk/go && go vet ./... && go test -race -count=1 ./...
 
 test-all: test-python test-typescript test-go ## Run all SDK test suites
+
+docs-dev: ## Run local Mintlify development server for docs
+	cd docs && npx mintlify dev
+
+docs-validate: ## Run docs JSON and MDX path validation check
+	python3 docs/scripts/validate-docs.py
