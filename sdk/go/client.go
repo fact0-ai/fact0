@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const userAgent = "fact0-go/1.0.3"
+const userAgent = "fact0-go/1.0.4"
 
 // DefaultBaseURL is the production Fact0 API origin.
 // Override via Config.BaseURL for local development or private deployments.
