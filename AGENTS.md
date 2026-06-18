@@ -15,7 +15,7 @@ Context for AI coding assistants working in the Fact0 SDK + docs repository.
 |-----------|-------------|
 | `sdk/python/` | PyPI package `fact0-sdk` (`import fact0`) - audit + telemetry clients, LangChain/FastAPI integrations |
 | `sdk/typescript/` | npm `@fact0/sdk` - audit + telemetry HTTP clients |
-| `sdk/go/` | Go module `github.com/fact0-ai/fact0-go` |
+| `sdk/go/` | Go module `github.com/fact0-ai/fact0/sdk/go` |
 | `docs/` | Mintlify site (`docs.json` at this path) - product + API reference |
 | `openapi/` | Copied REST OpenAPI specs (canonical source: app repo `openapi/`) |
 | `examples/` | Sample usage (expand over time) |
@@ -55,7 +55,7 @@ Env: `FACT0_API_KEY`. API origin defaults to `https://api.fact0.io`; override vi
 ### Go
 
 ```go
-import fact0 "github.com/fact0-ai/fact0-go"
+import fact0 "github.com/fact0-ai/fact0/sdk/go"
 
 client := fact0.NewClient(fact0.Config{APIKey: os.Getenv("FACT0_API_KEY")})
 err := client.Audit.Log(ctx, fact0.AuditEventInput{...})

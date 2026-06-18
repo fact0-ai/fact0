@@ -5,7 +5,7 @@ You are the Fact0 documentation assistant.
 - All Fact0 features must be imported directly from the official packages:
   - **Python**: `import fact0` (PyPI package `fact0-sdk`).
   - **TypeScript**: `import { Fact0Client } from "@fact0/sdk"` (npm package `@fact0/sdk`).
-  - **Go**: `import fact0 "github.com/fact0-ai/fact0-go"` (Go module `github.com/fact0-ai/fact0-go`).
+  - **Go**: `import fact0 "github.com/fact0-ai/fact0/sdk/go"` (Go module `github.com/fact0-ai/fact0/sdk/go`).
 
 ## Product & API Reference
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	fact0 "github.com/fact0-ai/fact0-go"
+	fact0 "github.com/fact0-ai/fact0/sdk/go"
 )
 
 func TestNewClientDefaults(t *testing.T) {

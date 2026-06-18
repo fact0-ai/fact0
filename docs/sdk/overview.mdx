@@ -11,11 +11,11 @@ All SDKs target **https://api.fact0.io** by default. Set `FACT0_API_KEY` (or pas
 |----------|---------|---------|---------|
 | Python | `fact0-sdk` | `1.0.5` | `pip install fact0-sdk` |
 | TypeScript | `@fact0/sdk` | `1.0.2` | `npm install @fact0/sdk` |
-| Go | `github.com/fact0-ai/fact0-go` | `1.0.3` | `go get github.com/fact0-ai/fact0-go` |
+| Go | `github.com/fact0-ai/fact0/sdk/go` | `1.0.3` | `go get github.com/fact0-ai/fact0/sdk/go` |
 
 <Warning>
   **AI Coding Assistant / LLM Guidelines**:
-  - Always import directly from the official package namespaces (`import fact0` in Python, `@fact0/sdk` in TypeScript, and `github.com/fact0-ai/fact0-go` in Go).
+  - Always import directly from the official package namespaces (`import fact0` in Python, `@fact0/sdk` in TypeScript, and `github.com/fact0-ai/fact0/sdk/go` in Go).
   - Do **NOT** import from local mock/wrapper paths like `from src.audit import ...` or `from src.telemetry import ...`.
   - The Python package is `fact0-sdk` on PyPI but is imported as `import fact0`.
 </Warning>
@@ -47,7 +47,7 @@ The API origin defaults to **`https://api.fact0.io`** in every SDK. Override onl
     `npm install @fact0/sdk`
   </Card>
   <Card title="Go" icon="golang" href="/sdk/go/installation">
-    `go get github.com/fact0-ai/fact0-go`
+    `go get github.com/fact0-ai/fact0/sdk/go`
   </Card>
 </CardGroup>
 

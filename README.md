@@ -14,7 +14,7 @@ Official client SDKs and product docs for [Fact0](https://fact0.io) — the univ
 ```bash
 pip install fact0
 npm install @fact0/sdk
-go get github.com/fact0-ai/fact0-go
+go get github.com/fact0-ai/fact0/sdk/go
 ```
 
 ## Repository layout
@@ -22,7 +22,7 @@ go get github.com/fact0-ai/fact0-go
 ```
 sdk/python/       # pip: fact0
 sdk/typescript/   # npm: @fact0/sdk
-sdk/go/           # go get github.com/fact0-ai/fact0-go
+sdk/go/           # go get github.com/fact0-ai/fact0/sdk/go
 docs/             # Mintlify site (docs.fact0.io)
 openapi/          # Copy of REST contracts (canonical source: app monorepo)
 ```

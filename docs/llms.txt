@@ -14,7 +14,7 @@
 - [SDK overview](/sdk/overview) - versions, env vars, API base URL
 - Python: `pip install fact0-sdk` - [docs](/sdk/python/installation)
 - TypeScript: `npm install @fact0/sdk` - [docs](/sdk/typescript/installation)
-- Go: `go get github.com/fact0-ai/fact0-go` - [docs](/sdk/go/installation)
+- Go: `go get github.com/fact0-ai/fact0/sdk/go` - [docs](/sdk/go/installation)
 
 API base URL: `https://api.fact0.io`
 
@@ -51,8 +51,8 @@ When writing code to integrate Fact0, follow these strict rules to ensure correc
   * **npm Package Name**: `@fact0/sdk`
   * **Import Statement**: `import { Fact0Client } from "@fact0/sdk"`
 * **Go SDK**:
-  * **Module Path**: `github.com/fact0-ai/fact0-go`
-  * **Import Statement**: `import fact0 "github.com/fact0-ai/fact0-go"`
+  * **Module Path**: `github.com/fact0-ai/fact0/sdk/go`
+  * **Import Statement**: `import fact0 "github.com/fact0-ai/fact0/sdk/go"`
 
 ---
 
@@ -162,7 +162,7 @@ await client.telemetry.endExecution(ex.id, "COMPLETED");
 
 #### Instantiation
 ```go
-import fact0 "github.com/fact0-ai/fact0-go"
+import fact0 "github.com/fact0-ai/fact0/sdk/go"
 
 client := fact0.NewClient(fact0.Config{
     APIKey:  "f0_live_...",
