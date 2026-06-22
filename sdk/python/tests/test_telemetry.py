@@ -107,9 +107,62 @@ def test_async_telemetry_flow(mock_server) -> None:
 
     asyncio.run(run())
 
-    # Check request paths
     paths = [req["path"] for req in mock_server.received]
-    assert "/api/v1/executions" in paths
     assert "/api/v1/executions/exec_async_123/spans" in paths
     assert "/api/v1/executions/exec_async_123/events" in paths
     assert "/api/v1/executions/exec_async_123/end" in paths
+
+
+def test_langchain_callback_metadata(mock_server) -> None:
+    from fact0 import Client
+    from fact0.integrations.langchain import Fact0CallbackHandler
+
+    client = Client(
+        api_key="f0_live_test",
+        base_url=mock_server.url,
+        sync=True,
+    )
+
+    def responder(req):
+        if req["path"] == "/api/v1/executions" and req["method"] == "POST":
+            return 200, b'{"id": "exec_lc_123"}'
+        return 200, b'{"receipt_id": "r_123", "status": "committed"}'
+
+    mock_server.set_responder(responder)
+
+    handler = Fact0CallbackHandler(client=client, agent_id="lc_agent")
+
+    handler.on_llm_start(
+        serialized={"name": "test-gpt"},
+        prompts=["tell me a joke"],
+        run_id="run_1",
+        metadata={
+            "session_id": "sess_joke",
+            "turn_sequence": 1,
+            "prompt_name": "joke-generator",
+            "prompt_version": 2,
+            "cost_usd": 0.0015,
+        }
+    )
+
+    class MockLLMResult:
+        def __init__(self):
+            self.llm_output = {"model_name": "gpt-4o", "token_usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}}
+            self.generations = [[type("Gen", (object,), {"text": "Why did the chicken cross the road?"})()]]
+
+    handler.on_llm_end(
+        response=MockLLMResult(),
+        run_id="run_1",
+    )
+
+    client.close()
+
+    span_req = next(r for r in mock_server.received if "spans" in r["path"])
+    span = span_req["json"]["spans"][0]
+    assert span["model_invocation"]["model_name"] == "gpt-4o"
+    assert span["model_invocation"]["session_id"] == "sess_joke"
+    assert span["model_invocation"]["turn_sequence"] == 1
+    assert span["model_invocation"]["prompt_name"] == "joke-generator"
+    assert span["model_invocation"]["prompt_version"] == 2
+    assert span["model_invocation"]["cost_usd"] == 0.0015
+

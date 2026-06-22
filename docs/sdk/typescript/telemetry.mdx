@@ -37,16 +37,31 @@ const executionId = execution.id as string;
 await tel.ingestSpans(executionId, [
   {
     span_id: "span-1",
+    span_type: "TOOL_CALL",
     name: "Search Knowledge Base",
     start_time: new Date().toISOString(),
     end_time: new Date().toISOString(),
   },
   {
     span_id: "span-2",
+    span_type: "MODEL_INVOCATION",
     name: "Generate Response",
     parent_span_id: "span-1", // Establishes causality/hierarchy
     start_time: new Date().toISOString(),
     end_time: new Date().toISOString(),
+    model_invocation: {
+      model_name: "claude-3-5-sonnet",
+      model_provider: "anthropic",
+      prompt_tokens: 2100,
+      completion_tokens: 450,
+      total_tokens: 2550,
+      // Thread session & Prompt Catalog variables:
+      session_id: "session_9a2f1b",
+      turn_sequence: 2,
+      prompt_name: "customer-inquiry",
+      prompt_version: 3,
+      cost_usd: 0.00975,
+    }
   }
 ]);
 

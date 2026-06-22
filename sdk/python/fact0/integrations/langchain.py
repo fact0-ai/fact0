@@ -66,6 +66,9 @@ class Fact0CallbackHandler:
             span.__enter__()
             if prompts:
                 setattr(span, "_prompt_text", "\n".join(prompts))
+            # Store run metadata if present
+            run_metadata = kwargs.get("metadata") or {}
+            setattr(span, "_run_metadata", run_metadata)
             self._spans[run_id] = span
 
     def on_llm_end(self, response: Any, **kwargs: Any) -> None:
@@ -98,6 +101,12 @@ class Fact0CallbackHandler:
                 "completion_tokens": int(completion_tokens),
                 "total_tokens": int(total_tokens),
             }
+
+            # Forward session/turn/prompt catalog/cost metadata from LangChain run config
+            run_metadata = getattr(span, "_run_metadata", None) or {}
+            for key in ["session_id", "turn_sequence", "prompt_name", "prompt_version", "cost_usd"]:
+                if key in run_metadata:
+                    model_invocation[key] = run_metadata[key]
 
             prompt_text = getattr(span, "_prompt_text", "")
             if prompt_text:

@@ -85,3 +85,63 @@ func TestTelemetryGetExecution(t *testing.T) {
 		t.Fatalf("unexpected execution: %#v", out)
 	}
 }
+
+func TestTelemetryIngestSpans(t *testing.T) {
+	ms := newMockServer(t)
+	c := fact0.NewClient(fact0.Config{
+		BaseURL: ms.URL,
+		APIKey:  "alk_live_test",
+	})
+
+	spans := []map[string]any{
+		{
+			"id":        "span_abc",
+			"span_type": "MODEL_INVOCATION",
+			"name":      "test-span",
+		},
+	}
+
+	_, err := c.Telemetry.IngestSpans(context.Background(), "exec_123", spans)
+	if err != nil {
+		t.Fatalf("ingest spans: %v", err)
+	}
+
+	reqs := ms.received()
+	if len(reqs) != 1 {
+		t.Fatalf("expected 1 request, got %d", len(reqs))
+	}
+	req := reqs[0]
+	if req.Method != "POST" || req.Path != "/api/v1/executions/exec_123/spans" {
+		t.Fatalf("unexpected request: %s %s", req.Method, req.Path)
+	}
+}
+
+func TestTelemetryIngestEvents(t *testing.T) {
+	ms := newMockServer(t)
+	c := fact0.NewClient(fact0.Config{
+		BaseURL: ms.URL,
+		APIKey:  "alk_live_test",
+	})
+
+	events := []map[string]any{
+		{
+			"id":         "event_abc",
+			"event_type": "log",
+			"payload":    map[string]any{"msg": "test"},
+		},
+	}
+
+	_, err := c.Telemetry.IngestEvents(context.Background(), "exec_123", events)
+	if err != nil {
+		t.Fatalf("ingest events: %v", err)
+	}
+
+	reqs := ms.received()
+	if len(reqs) != 1 {
+		t.Fatalf("expected 1 request, got %d", len(reqs))
+	}
+	req := reqs[0]
+	if req.Method != "POST" || req.Path != "/api/v1/executions/exec_123/events" {
+		t.Fatalf("unexpected request: %s %s", req.Method, req.Path)
+	}
+}

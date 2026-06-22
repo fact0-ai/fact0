@@ -63,6 +63,32 @@ class SpanContext:
         metadata: dict[str, str] | None = None,
         audit: bool = True,
     ) -> None:
+        """Mark the span complete and record its outcome and details.
+
+        Args:
+            output: Optional key-value map representing the output of the span.
+            status: Lifecycle status of the span (e.g., "COMPLETED", "FAILED").
+            model_invocation: Optional metadata for LLM calls (SpanType: MODEL_INVOCATION).
+                Supported keys:
+                    - model_name (str): Name of the model.
+                    - model_provider (str): Provider (e.g., 'openai', 'anthropic', 'google').
+                    - prompt_tokens (int): Count of input tokens.
+                    - completion_tokens (int): Count of output tokens.
+                    - total_tokens (int): Total token count.
+                    - latency_ms (int): Duration of the LLM call in milliseconds.
+                    - temperature (float): LLM sampling temperature.
+                    - session_id (str): Conversation session thread ID.
+                    - turn_sequence (int): 0-indexed turn sequence number.
+                    - prompt_name (str): Registered prompt name in prompt catalog.
+                    - prompt_version (int): Version of prompt catalog template.
+                    - cost_usd (float): Direct override cost in USD.
+            tool_call: Optional metadata for external tool calls (SpanType: TOOL_CALL).
+            state_mutation: Optional metadata for state mutation events.
+            human_approval: Optional metadata for human approval gates.
+            policy_evaluation: Optional metadata for policy check runs.
+            metadata: Custom key-value pairs to attach to this span.
+            audit: Whether to log a corresponding audit log event.
+        """
         if self._ended:
             return
         self._ended = True
@@ -233,6 +259,32 @@ class AsyncSpanContext:
         metadata: dict[str, str] | None = None,
         audit: bool = True,
     ) -> None:
+        """Mark the span complete and record its outcome and details asynchronously.
+
+        Args:
+            output: Optional key-value map representing the output of the span.
+            status: Lifecycle status of the span (e.g., "COMPLETED", "FAILED").
+            model_invocation: Optional metadata for LLM calls (SpanType: MODEL_INVOCATION).
+                Supported keys:
+                    - model_name (str): Name of the model.
+                    - model_provider (str): Provider (e.g., 'openai', 'anthropic', 'google').
+                    - prompt_tokens (int): Count of input tokens.
+                    - completion_tokens (int): Count of output tokens.
+                    - total_tokens (int): Total token count.
+                    - latency_ms (int): Duration of the LLM call in milliseconds.
+                    - temperature (float): LLM sampling temperature.
+                    - session_id (str): Conversation session thread ID.
+                    - turn_sequence (int): 0-indexed turn sequence number.
+                    - prompt_name (str): Registered prompt name in prompt catalog.
+                    - prompt_version (int): Version of prompt catalog template.
+                    - cost_usd (float): Direct override cost in USD.
+            tool_call: Optional metadata for external tool calls (SpanType: TOOL_CALL).
+            state_mutation: Optional metadata for state mutation events.
+            human_approval: Optional metadata for human approval gates.
+            policy_evaluation: Optional metadata for policy check runs.
+            metadata: Custom key-value pairs to attach to this span.
+            audit: Whether to log a corresponding audit log event.
+        """
         if self._ended:
             return
         self._ended = True

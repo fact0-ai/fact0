@@ -40,8 +40,32 @@ if err != nil {
 executionID := exec["id"].(string)
 
 // 2. Ingest spans with parent-child relationships
-// Note: Currently, ingest spans are sent via REST HTTP endpoints.
-// Under the hood, you can call the underlying ingest API endpoints.
+// Spans can be ingested by making a POST request to `/api/v1/executions/{executionID}/spans` with the following JSON structure:
+/*
+{
+  "spans": [
+    {
+      "id": "span-1",
+      "span_type": "MODEL_INVOCATION",
+      "name": "Generate Answer",
+      "started_at": "2026-06-22T22:00:00Z",
+      "ended_at": "2026-06-22T22:00:01Z",
+      "model_invocation": {
+        "model_name": "gpt-4o",
+        "model_provider": "openai",
+        "prompt_tokens": 1200,
+        "completion_tokens": 250,
+        "total_tokens": 1450,
+        "session_id": "session_9a2f1b",
+        "turn_sequence": 2,
+        "prompt_name": "customer-inquiry",
+        "prompt_version": 3,
+        "cost_usd": 0.00725
+      }
+    }
+  ]
+}
+*/
 ```
 
 ## Read methods
@@ -58,6 +82,8 @@ executionID := exec["id"].(string)
 | Method | REST | Description |
 |--------|------|-------------|
 | `StartExecution(ctx, req)` | `POST /api/v1/executions` | Registers a new agent execution |
+| `IngestSpans(ctx, executionID, spans)` | `POST /api/v1/executions/{id}/spans` | Stream execution spans to the backend |
+| `IngestEvents(ctx, executionID, events)` | `POST /api/v1/executions/{id}/events` | Stream execution events to the backend |
 | `EndExecution(ctx, executionID, status)` | `PUT /api/v1/executions/{id}/end` | Close the execution run |
 
 Status values: `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`.

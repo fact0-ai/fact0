@@ -32,6 +32,26 @@ print(exec["id"])
 
 ```python
 with client.telemetry.execution(agent_id="research-bot") as ex:
+    # 1. Record an LLM call with prompt and session metadata
+    with ex.span("gpt-4o", span_type="MODEL_INVOCATION") as span:
+        span.complete(
+            model_invocation={
+                "model_name": "gpt-4o",
+                "model_provider": "openai",
+                "prompt_tokens": 1500,
+                "completion_tokens": 350,
+                "total_tokens": 1850,
+                "temperature": 0.7,
+                # Observability Turn & Prompt Catalog metadata:
+                "session_id": "session_9a2f1b",
+                "turn_sequence": 2,
+                "prompt_name": "customer-inquiry",
+                "prompt_version": 3,
+                "cost_usd": 0.00925,
+            }
+        )
+
+    # 2. Record a tool call
     with ex.span("tool.search", span_type="TOOL_CALL") as span:
         span.log_event("query", {"q": "fact0"})
         span.complete(output={"hits": 5})
