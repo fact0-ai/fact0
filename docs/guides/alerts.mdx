@@ -1,0 +1,119 @@
+---
+title: Alerts & webhooks
+description: Get notified when your audit chain breaks, an ingest fails, or you approach your event quota.
+---
+
+# Alerts & webhooks
+
+Fact0 can push two types of notifications:
+
+| Channel | Events |
+|---------|--------|
+| **Webhook** | Chain verification failure, async ingest failure |
+| **Email** | Quota threshold (80% and 100%), evidence report ready |
+
+Configure both from **Settings → Alerts** in the dashboard.
+
+---
+
+## Webhook alerts
+
+### Setup
+
+1. Go to **Settings → Alerts** in the dashboard.
+2. Paste your endpoint URL in the **Webhook URL** field. Fact0 will POST JSON to this URL.
+3. Optionally enter an **Alert email** for quota and report notifications.
+4. Click **Save**, then **Test** to verify Fact0 can reach your endpoint.
+
+Your endpoint must respond with a `2xx` status within 10 seconds. Fact0 makes a single attempt — there is no retry queue.
+
+### Payload
+
+All webhook deliveries share this shape:
+
+```json
+{
+  "event": "fact0.chain.verify_failed",
+  "tenant_id": "tnt_01HZF1A1A1",
+  "valid": false,
+  "broken_count": 2,
+  "reason": "hash mismatch at event evt_01JQXYZ"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event` | string | Event type (see below) |
+| `tenant_id` | string | Your workspace identifier |
+| `valid` | bool | `false` for all webhook events (they only fire on failure) |
+| `broken_count` | int | Number of broken links detected (chain events only) |
+| `reason` | string | Human-readable failure description |
+
+### Event types
+
+| Event | Trigger |
+|-------|---------|
+| `fact0.chain.verify_failed` | A chain verification run found one or more hash mismatches |
+| `fact0.ingest.receipt_failed` | An async ingest receipt exhausted all retries without completing |
+
+---
+
+## Email alerts
+
+Email notifications go to the **Alert email** address you configure in Settings → Alerts.
+
+| Alert | Trigger |
+|-------|---------|
+| **Quota at 80%** | Your workspace has consumed 80% of its monthly event quota |
+| **Quota at 100%** | Monthly quota fully consumed — further ingest will be rejected |
+| **Evidence report ready** | A PDF or evidence pack export has finished and is ready to download |
+| **Chain break** | Same trigger as the webhook, sent as an email in parallel |
+
+---
+
+## Testing your webhook
+
+Click **Test** in Settings → Alerts to send a sample `fact0.chain.verify_failed` payload to your configured URL. Fact0 logs whether your endpoint responded successfully.
+
+You can also trigger a test with the API:
+
+```bash
+curl -X POST https://api.fact0.io/v1/me/settings/alerts/test \
+  -H "Authorization: Bearer $FACT0_API_KEY"
+```
+
+---
+
+## Triggering chain verification
+
+Chain verification runs when you call the verify endpoint or click **Verify chain** in the Audit Logs page. A webhook fires immediately if any broken links are found:
+
+```bash
+curl https://api.fact0.io/v1/verify \
+  -H "Authorization: Bearer $FACT0_API_KEY"
+```
+
+```json
+{
+  "valid": false,
+  "total_checked": 1500,
+  "broken_count": 1,
+  "reason": "hash mismatch at event evt_01JQXYZ"
+}
+```
+
+---
+
+## Viewing and updating alert settings via API
+
+```bash
+# Get current settings
+GET /v1/me/settings/alerts
+
+# Update webhook URL and alert email
+PUT /v1/me/settings/alerts
+{
+  "alert_webhook_url": "https://your.endpoint.com/fact0",
+  "alert_email": "oncall@yourcompany.com"
+}
+```

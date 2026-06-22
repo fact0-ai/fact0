@@ -86,10 +86,17 @@
             ]
           },
           {
+            "group": "Observability",
+            "pages": [
+              "observability/overview",
+              "observability/prompt-registry"
+            ]
+          },
+          {
             "group": "Guides",
             "pages": [
-              "guides/agent-prompt",
               "guides/compliance",
+              "guides/alerts",
               "guides/security",
               "guides/rate-limits"
             ]

@@ -1,0 +1,125 @@
+---
+title: Observability Hub
+description: LLM call analytics, tool execution metrics, error rates, and conversation sessions — all derived from your agent's execution telemetry.
+---
+
+# Observability Hub
+
+The Observability Hub aggregates the execution telemetry your agents emit via the Fact0 SDK (or OpenTelemetry) into four views: **LLM Calls**, **Tool Executions**, **Error Analytics**, and **Conversations**. All metrics are scoped to the last 30 days by default.
+
+<Note>
+  Metrics populate from execution spans. If you haven't integrated the SDK yet, start with the [Quickstart](/quickstart) or the [SDK overview](/sdk/overview).
+</Note>
+
+---
+
+## How data gets here
+
+Every time your agent completes a model call or tool invocation, the SDK emits a **span** to Fact0. The Observability Hub reads those spans and aggregates them server-side:
+
+```python
+import fact0, os
+
+client = fact0.Client(api_key=os.environ["FACT0_API_KEY"])
+
+with client.telemetry.execution(agent_id="my-agent") as ex:
+
+    # This span produces an LLM Calls data point
+    with ex.span("gpt-4o call", span_type="MODEL_INVOCATION") as s:
+        s.complete(model_invocation={
+            "model_name": "gpt-4o",
+            "model_provider": "openai",
+            "prompt_tokens": 512,
+            "completion_tokens": 128,
+            "latency_ms": 870,
+        })
+
+    # This span produces a Tool Executions data point
+    with ex.span("search", span_type="TOOL_CALL") as s:
+        s.complete(tool_call={"tool_name": "web_search", "duration_ms": 340})
+```
+
+If you use OpenTelemetry, `gen_ai.*` semantic convention attributes are automatically classified as `MODEL_INVOCATION` and tool spans as `TOOL_CALL` — no code changes needed. See [OpenTelemetry integration](/integrations/opentelemetry).
+
+---
+
+## LLM Calls tab
+
+Aggregated statistics for all `MODEL_INVOCATION` spans over the selected period.
+
+| Metric | Description |
+|--------|-------------|
+| Total calls | Raw span count |
+| Success rate | Spans without error / total |
+| Avg / P50 / P95 / P99 latency | Percentile latency in ms |
+| Prompt tokens | Input tokens consumed |
+| Completion tokens | Output tokens generated |
+| Estimated cost (USD) | Calculated from provider pricing tables |
+
+**By model** — a per-model breakdown of call count, token usage, latency, error count, and estimated cost across all providers your agents use.
+
+**Call frequency chart** — hourly/daily bucketed call volume over time, useful for spotting traffic spikes or agent regressions.
+
+---
+
+## Tool Executions tab
+
+Aggregated statistics for all `TOOL_CALL` spans.
+
+| Metric | Description |
+|--------|-------------|
+| Total calls | Raw span count |
+| Success rate | Spans without error / total |
+| Avg duration | Mean execution time in ms |
+
+**By tool** — per-tool breakdown of call count, duration, error count, and success rate. Useful for identifying slow or unreliable tools.
+
+---
+
+## Error Analytics tab
+
+Error frequency derived from spans with `has_error = true`.
+
+- **By model** — which LLM providers are producing errors and at what rate
+- **By tool** — which tools fail most often
+- **Time series** — error count over time to track regressions or incidents
+
+---
+
+## Conversations tab
+
+Conversations groups related agent executions into **sessions** — a higher-level view of multi-turn agent interactions with a user or system.
+
+A session is identified by a `session_id` metadata field you pass when starting an execution:
+
+```python
+with client.telemetry.execution(
+    agent_id="support-bot",
+    metadata={"session_id": "sess_abc123"},
+) as ex:
+    ...
+```
+
+Each session card shows:
+- Agent name and session ID
+- Turn count (number of executions in the session)
+- Total tokens consumed and estimated cost
+- Session status (`active` / `completed`)
+
+Selecting a session opens a **turn trace** view showing each execution in sequence, with its LLM calls, tool calls, token counts, latency, and cost.
+
+---
+
+## Prompt Registry
+
+The **Prompt Registry** stores versioned prompt templates your agents fetch at runtime, keeping prompts auditable and out of application code. See the [Prompt Registry guide](/observability/prompt-registry) for full details.
+
+---
+
+## Date range
+
+All tabs respect a shared time range (default: last 30 days). Pass `from` and `to` as ISO 8601 timestamps if querying the API directly:
+
+```
+GET /v1/me/analytics/llm?from=2026-06-01T00:00:00Z&to=2026-06-30T23:59:59Z
+```

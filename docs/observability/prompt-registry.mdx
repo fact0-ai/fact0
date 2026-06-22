@@ -1,0 +1,137 @@
+---
+title: Prompt Registry
+description: Store, version, and fetch prompt templates centrally so your agents always use the right prompt without redeploying code.
+---
+
+# Prompt Registry
+
+The Prompt Registry is a versioned store for prompt templates. Instead of hardcoding prompts in your agent code, you register them once in Fact0 and fetch the latest version at runtime. Every registered prompt is tracked with usage statistics — call count, average token consumption, and average latency — directly from the spans that reference it.
+
+---
+
+## Why use it
+
+- **No redeployments for prompt changes** — update a template in the dashboard, agents pick it up on the next request
+- **Versioned history** — every `POST /v1/me/prompts` creates a new version; older versions remain accessible
+- **Usage analytics** — see which prompts are called most, how many tokens they consume, and how long they take
+- **Audit trail** — prompt changes flow through the same tamper-evident log as all Fact0 events
+
+---
+
+## Registering a prompt
+
+### Via the dashboard
+
+Go to **Observability → Prompt Registry** and click **Register Prompt**. Fill in:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Name | Yes | Unique identifier for this prompt (`research-agent-system`) |
+| Template | Yes | The prompt text. Use `{{variable}}` placeholders for dynamic values |
+| Variables | No | Comma-separated list of variable names expected in the template |
+| Model hints | No | Suggested models (`gpt-4o`, `claude-sonnet-4-6`) — informational only |
+| Metadata | No | Arbitrary JSON key/value pairs |
+
+### Via API
+
+```bash
+curl -X POST https://api.fact0.io/v1/me/prompts \
+  -H "Authorization: Bearer $FACT0_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "research-agent-system",
+    "template": "You are a research assistant. Today is {{date}}. User query: {{query}}",
+    "variables": ["date", "query"],
+    "model_hints": ["gpt-4o", "claude-sonnet-4-6"]
+  }'
+```
+
+Each call creates a **new version**. The version number increments automatically.
+
+---
+
+## Fetching a prompt at runtime
+
+```bash
+GET https://api.fact0.io/v1/me/prompts/{id}
+```
+
+```python
+import fact0, os, requests
+
+# Fetch the latest version of a prompt by its ID
+resp = requests.get(
+    f"https://api.fact0.io/v1/me/prompts/{prompt_id}",
+    headers={"Authorization": f"Bearer {os.environ['FACT0_API_KEY']}"},
+)
+prompt = resp.json()
+
+# Interpolate variables
+system_prompt = prompt["template"].replace("{{date}}", today).replace("{{query}}", user_query)
+```
+
+To list all prompts and find the one you want by name:
+
+```bash
+GET https://api.fact0.io/v1/me/prompts
+```
+
+---
+
+## Prompt record schema
+
+```json
+{
+  "id": "pmpt_01HZF1Z1Z1",
+  "name": "research-agent-system",
+  "version": 3,
+  "template": "You are a research assistant. Today is {{date}}. User query: {{query}}",
+  "variables": ["date", "query"],
+  "model_hints": ["gpt-4o"],
+  "metadata": {},
+  "created_at": "2026-06-15T10:22:00Z",
+  "usage_count": 412,
+  "avg_tokens": 284.5,
+  "avg_latency_ms": 920.0
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | Stable ULID — use this to fetch a specific prompt |
+| `name` | Human-readable identifier |
+| `version` | Auto-incremented on each `POST` |
+| `template` | Raw prompt text with `{{variable}}` placeholders |
+| `variables` | Expected placeholder names |
+| `model_hints` | Suggested models (informational) |
+| `usage_count` | Number of spans referencing this prompt (computed) |
+| `avg_tokens` | Mean token consumption per use (computed) |
+| `avg_latency_ms` | Mean latency per use (computed) |
+
+---
+
+## Linking a prompt to a span
+
+To have usage statistics populated, tag your span with the prompt ID when you ingest it:
+
+```python
+with ex.span("gpt-4o call", span_type="MODEL_INVOCATION") as s:
+    s.complete(model_invocation={
+        "model_name": "gpt-4o",
+        "model_provider": "openai",
+        "prompt_id": "pmpt_01HZF1Z1Z1",   # links this call to the prompt
+        "prompt_tokens": 284,
+        "completion_tokens": 91,
+        "latency_ms": 910,
+    })
+```
+
+---
+
+## API reference
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/me/prompts` | List all prompt versions for the current tenant |
+| `POST` | `/v1/me/prompts` | Register a new prompt (or new version of an existing name) |
+| `GET` | `/v1/me/prompts/{id}` | Fetch a specific prompt version by ID |
