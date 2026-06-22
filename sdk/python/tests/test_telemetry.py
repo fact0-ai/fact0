@@ -157,7 +157,7 @@ def test_langchain_callback_metadata(mock_server) -> None:
 
     client.close()
 
-    span_req = next(r for r in mock_server.received if "spans" in r["path"])
+    span_req = next(r for r in mock_server.received if "spans" in r["path"] and r["json"]["spans"][0].get("model_invocation"))
     span = span_req["json"]["spans"][0]
     assert span["model_invocation"]["model_name"] == "gpt-4o"
     assert span["model_invocation"]["session_id"] == "sess_joke"
