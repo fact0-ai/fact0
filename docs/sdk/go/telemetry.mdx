@@ -18,7 +18,7 @@ tel := client.Telemetry
 ```
 
 <Note>
-  Telemetry requires the same `f0_live_*` or `f0_live_*` API key as the audit log.
+  Telemetry requires the same `f0_live_*` API key as the audit log.
 </Note>
 
 ## How it works
@@ -40,32 +40,44 @@ if err != nil {
 executionID := exec["id"].(string)
 
 // 2. Ingest spans with parent-child relationships
-// Spans can be ingested by making a POST request to `/api/v1/executions/{executionID}/spans` with the following JSON structure:
-/*
-{
-  "spans": [
+_, err = tel.IngestSpans(context.Background(), executionID, []map[string]interface{}{
     {
-      "id": "span-1",
-      "span_type": "MODEL_INVOCATION",
-      "name": "Generate Answer",
-      "started_at": "2026-06-22T22:00:00Z",
-      "ended_at": "2026-06-22T22:00:01Z",
-      "model_invocation": {
-        "model_name": "gpt-4o",
-        "model_provider": "openai",
-        "prompt_tokens": 1200,
-        "completion_tokens": 250,
-        "total_tokens": 1450,
-        "session_id": "session_9a2f1b",
-        "turn_sequence": 2,
-        "prompt_name": "customer-inquiry",
-        "prompt_version": 3,
-        "cost_usd": 0.00725
-      }
-    }
-  ]
+        "span_id":    "span-1",
+        "span_type":  "TOOL_CALL",
+        "name":       "Search Knowledge Base",
+        "start_time": "2026-06-22T22:00:00Z",
+        "end_time":   "2026-06-22T22:00:00.210Z",
+        "tool_call": map[string]interface{}{
+            "tool_name":   "knowledge_search",
+            "duration_ms": 210,
+            "input":       map[string]interface{}{"inline": map[string]interface{}{"query": "refund policy"}},
+            "output":      map[string]interface{}{"inline": map[string]interface{}{"hits": 5}},
+        },
+    },
+    {
+        "span_id":        "span-2",
+        "span_type":      "MODEL_INVOCATION",
+        "name":           "Generate Answer",
+        "parent_span_id": "span-1",
+        "start_time":     "2026-06-22T22:00:00.210Z",
+        "end_time":       "2026-06-22T22:00:01.450Z",
+        "model_invocation": map[string]interface{}{
+            "model_name":        "gpt-4o",
+            "model_provider":    "openai",
+            "prompt_tokens":     1200,
+            "completion_tokens": 250,
+            "total_tokens":      1450,
+            "session_id":        "session_9a2f1b",
+            "turn_sequence":     2,
+            "prompt_name":       "customer-inquiry",
+            "prompt_version":    3,
+            "cost_usd":          0.00725,
+        },
+    },
+})
+if err != nil {
+    log.Fatal(err)
 }
-*/
 ```
 
 ## Read methods

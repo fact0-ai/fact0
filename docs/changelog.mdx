@@ -5,6 +5,18 @@ description: SDK and API release notes.
 
 # Changelog
 
+## v1.2.2 - 2026-06-23
+
+### Observability Analytics Fix
+- **Fixed `GET /v1/me/analytics/errors` 500 error**: Querying model or tool errors returned `INTERNAL: querying model errors` due to PostgreSQL rejecting a `GROUP BY name` that referenced a column alias. Changed both `modelErrQuery` and `toolErrQuery` in `analytics_store.go` to use positional `GROUP BY 1`.
+
+### Dashboard UX
+- **Contextual Help Sheet**: Six pages (Observability Hub, Executions, Conversations, Prompt Registry, Audit Logs, Replay) now show a `Help` button in the page toolbar. Clicking it slides in a right-side panel with a tagline, key concepts, a guided tour launcher, and a link to the relevant docs page.
+- **Page-local tours**: Each of the six pages now starts a tour scoped to its own steps. Clicking `Tour` on Executions or Observability no longer redirects to the Ingestion Credentials page.
+- **Tour preload**: `driver.js` is eagerly imported on hook mount so the first tour click is instant instead of showing a load delay.
+
+---
+
 ## SDK Go v1.0.4 - 2026-06-18
 
 ### Go SDK (v1.0.4)

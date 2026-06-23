@@ -25,9 +25,15 @@ API base URL: `https://api.fact0.io`
 - Agent frameworks: [LangChain](/integrations/langchain) · [LangGraph](/integrations/langgraph) · [LlamaIndex](/integrations/llamaindex) · [CrewAI](/integrations/crewai) · [AutoGen](/integrations/autogen) · [Agno](/integrations/agno) · [CAMEL AI](/integrations/camel-ai) · [OpenAI Agents SDK](/integrations/openai-agents-sdk) · [Google ADK](/integrations/google-adk) · [Mastra](/integrations/mastra) · [Vercel AI SDK](/integrations/vercel-ai-sdk) · [ChatDev](/integrations/chatdev)
 - Web frameworks: [FastAPI](/integrations/fastapi) · [Next.js](/integrations/nextjs) · [Express](/integrations/express)
 
+## Observability
+
+- [Observability Hub](/observability/overview) — real-time LLM call metrics, tool execution stats, error rates, and conversation sessions
+- [Prompt Registry](/observability/prompt-registry) — version-controlled prompt templates fetched by agents at runtime via `GET /v1/me/prompts/{name}`
+
 ## Guides
 
-- [Agent Prompt for AI Coding Assistants](/guides/agent-prompt) — copy-paste prompt for Cursor, Antigravity, Copilot, etc.
+- [Agent Prompt for AI Coding Assistants](/guides/agent-prompt) — language-tabbed prompt (Python / TypeScript / Go) for Cursor, Antigravity, Copilot, etc.
+- [Alerts & Webhooks](/guides/alerts) — webhook notifications for audit events and execution failures
 - [Compliance](/guides/compliance)
 - [Security](/guides/security)
 - [Rate limits](/guides/rate-limits)

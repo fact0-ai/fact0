@@ -8,17 +8,19 @@ icon: "sparkles"
 Give this prompt to your AI coding agent (Cursor, Antigravity, GitHub Copilot, Windsurf, Cline, etc.) and it will have everything it needs to integrate Fact0 into your project correctly.
 
 <Tip>
-  Copy the entire block below and paste it into your agent's system prompt, rules file (`.cursorrules`, `AGENTS.md`, `CLAUDE.md`), or conversation context.
+  Select your language below, then copy the entire block and paste it into your agent's system prompt, rules file (`.cursorrules`, `AGENTS.md`, `CLAUDE.md`), or conversation context.
 </Tip>
 
 ---
 
 ## The Prompt
 
-<Accordion title="Click to expand the full agent prompt">
+<Tabs>
+  <Tab title="Python">
+    <Accordion title="Click to expand the full Python agent prompt">
 
 ````markdown
-# Fact0 Integration Guide for AI Coding Agents
+# Fact0 Integration Guide for AI Coding Agents — Python
 
 You are integrating **Fact0** — a tamper-evident audit log and execution telemetry platform for AI agents.
 
@@ -31,21 +33,13 @@ You are integrating **Fact0** — a tamper-evident audit log and execution telem
 
 ## 1. Installation
 
-### Python
 ```bash
 pip install fact0-sdk
 ```
+
 > **CRITICAL**: The PyPI package is `fact0-sdk`, NOT `fact0`. The import is `import fact0`.
 
-### TypeScript / Node.js
-```bash
-npm install @fact0/sdk
-```
-
-### Go
-```bash
-go get github.com/fact0-ai/fact0/sdk/go
-```
+Requires Python 3.10+.
 
 ---
 
@@ -53,11 +47,10 @@ go get github.com/fact0-ai/fact0/sdk/go
 
 Get an API key from https://app.fact0.io → Settings → API Keys.
 
-Keys are prefixed `f0_live_…` or `alk_live_…`. They have a **scope**:
+Keys are prefixed `f0_live_…`. They have a **scope**:
 - `write` — can append audit events and ingest telemetry
 - `read` — can query events, verify chains, export PDFs
 
-Set the key via environment variable or constructor:
 ```bash
 export FACT0_API_KEY="f0_live_..."
 ```
@@ -74,7 +67,6 @@ Fact0 has **two pipelines** — use both together for full coverage:
 | **Telemetry** | Execution tracing with spans, DAGs, and replay | Debugging agent runs: model invocations, tool calls, state mutations, timing |
 
 ### Audit Event Shape
-Every audit event has these required fields:
 ```json
 {
   "actor":    {"id": "agent-1", "type": "agent"},
@@ -109,7 +101,7 @@ import fact0
 # Sync client (recommended for most use cases)
 client = fact0.Client(api_key="f0_live_...")
 
-# Async client
+# Async client (for FastAPI / asyncio agents)
 async_client = fact0.AsyncClient(api_key="f0_live_...")
 ```
 
@@ -125,9 +117,6 @@ client.audit.log(
     outcome="success",
     metadata={"amount_usd": 5000, "approver": "auto"},
 )
-
-# Convenience shortcut (sync only)
-client.log(actor=..., action=..., resource=..., outcome=...)
 
 # Batch (up to 1000 events)
 client.audit.log_batch([
@@ -157,9 +146,6 @@ event = client.audit.get_event("evt_01HX3K...")
 result = client.audit.verify()
 # → {"valid": True, "events_checked": 31847, "root_hash": "sha256:..."}
 
-# Verify single event hash
-client.audit.verify_event("evt_01HX3K...")
-
 # Export SOC 2-style PDF audit pack
 pdf_bytes = client.audit.export_pdf(from_="2024-01-01", to="2024-06-01")
 
@@ -171,9 +157,8 @@ for event in client.audit.stream_events():
     print(event)
 ```
 
-### Execution Telemetry
+### Execution Telemetry (context manager — recommended)
 ```python
-# Context-manager style (recommended)
 with client.telemetry.execution(
     agent_id="research-bot",
     agent_name="Research Bot",
@@ -215,15 +200,6 @@ with client.telemetry.execution(
             },
         )
 
-    # Track a policy check
-    with ex.span("pii_guard", span_type="POLICY_EVALUATION") as span:
-        span.complete(
-            policy_evaluation={
-                "policy_name": "pii-redaction",
-                "result": "pass",
-            },
-        )
-
     # Track a human approval gate
     with ex.span("manager_approval", span_type="HUMAN_APPROVAL") as span:
         span.complete(
@@ -234,53 +210,12 @@ with client.telemetry.execution(
             },
         )
 
-# Execution auto-ends with COMPLETED/FAILED based on exceptions
-```
-
-### Manual Telemetry (lower-level)
-```python
-# Start execution
-exec_data = client.telemetry.start_execution(
-    agent_id="my-agent",
-    agent_name="My Agent",
-    trigger="cron",
-)
-execution_id = exec_data["id"]
-
-# Ingest spans manually
-client.telemetry.ingest_spans(execution_id, [
-    {
-        "id": "span_001",
-        "execution_id": execution_id,
-        "span_type": "TOOL_CALL",
-        "name": "web_search",
-        "status": "COMPLETED",
-        "started_at": "2024-01-01T00:00:00Z",
-        "ended_at": "2024-01-01T00:00:01Z",
-        "parent_span_id": None,  # optional, for nested DAGs
-    }
-])
-
-# Ingest events (timeline events within a span)
-client.telemetry.ingest_events(execution_id, [
-    {
-        "id": "evt_001",
-        "execution_id": execution_id,
-        "span_id": "span_001",
-        "event_type": "query_submitted",
-        "timestamp": "2024-01-01T00:00:00Z",
-        "payload": {"q": "search query"},
-    }
-])
-
-# End execution
-client.telemetry.end_execution(execution_id, "COMPLETED")
+# Execution auto-ends COMPLETED/FAILED based on exceptions
 ```
 
 ### Async Client
 ```python
 async with fact0.AsyncClient(api_key="f0_live_...") as client:
-    # IMPORTANT: AsyncClient does NOT have client.log() shortcut
     await client.audit.log(
         actor={"id": "agent-1", "type": "agent"},
         action="document.read",
@@ -288,9 +223,7 @@ async with fact0.AsyncClient(api_key="f0_live_...") as client:
         outcome="success",
     )
 
-    async with client.telemetry.execution(
-        agent_id="my-agent",
-    ) as ex:
+    async with client.telemetry.execution(agent_id="my-agent") as ex:
         async with ex.span("search", span_type="TOOL_CALL") as span:
             await span.complete(output={"result": "found"})
 ```
@@ -304,58 +237,7 @@ client.close()   # stops background workers
 
 ---
 
-## 5. TypeScript SDK
-
-```typescript
-import { Fact0Client } from "@fact0/sdk";
-
-const client = new Fact0Client({
-  apiKey: "f0_live_...",
-  baseUrl: "https://api.fact0.io",  // optional, this is the default
-});
-
-// Audit logging
-await client.audit.log({
-  actor: { id: "user_123", type: "human" },
-  action: "invoice.approve",
-  resource: { id: "inv_99", type: "invoice" },
-  outcome: "success",
-  metadata: { amount: 5000 },
-});
-
-// Telemetry
-const ex = await client.telemetry.startExecution({
-  agentId: "support-bot",
-  trigger: "new_ticket",
-});
-await client.telemetry.ingestSpans(ex.id, [{ ... }]);
-await client.telemetry.endExecution(ex.id, "COMPLETED");
-```
-
----
-
-## 6. Go SDK
-
-```go
-import fact0 "github.com/fact0-ai/fact0/sdk/go"
-
-client := fact0.NewClient(fact0.Config{
-    APIKey:  "f0_live_...",
-    BaseURL: "https://api.fact0.io",
-})
-
-err := client.Audit.Log(ctx, fact0.AuditEventInput{
-    Actor:    fact0.ActorInput{ID: "system-cron", Type: "system"},
-    Action:   "backup.create",
-    Resource: fact0.ResourceInput{ID: "db_1", Type: "database"},
-    Outcome:  "success",
-    Metadata: map[string]interface{}{"size_bytes": 1048576},
-})
-```
-
----
-
-## 7. Framework Integrations
+## 5. Framework Integrations
 
 ### LangChain
 ```python
@@ -364,10 +246,8 @@ from fact0.integrations.langchain import Fact0CallbackHandler
 handler = Fact0CallbackHandler(
     client=client,
     agent_id="my-langchain-agent",
-    audit_sensitive_actions=True,  # logs tool calls and LLM invocations to audit
+    audit_sensitive_actions=True,
 )
-
-# Pass as callback to any LangChain chain/agent
 chain.invoke({"input": "..."}, config={"callbacks": [handler]})
 ```
 
@@ -380,20 +260,17 @@ app.add_middleware(
     client_factory=lambda: client.audit,
     action_prefix="api",
 )
-# Every HTTP request is now logged as an audit event
 ```
 
-### OpenTelemetry (Zero code changes)
-Point any OTel SDK or Collector at Fact0:
+### OpenTelemetry (zero code changes)
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.fact0.io"
 export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer f0_live_..."
 ```
-Docs: https://docs.fact0.io/integrations/opentelemetry
 
 ---
 
-## 8. REST API Quick Reference
+## 6. REST API Quick Reference
 
 ### Audit API (base: https://api.fact0.io)
 | Method | Endpoint | Auth | Description |
@@ -417,29 +294,26 @@ Docs: https://docs.fact0.io/integrations/opentelemetry
 | POST | `/api/v1/executions/{id}/events` | Ingest events |
 | PUT | `/api/v1/executions/{id}/end` | End execution |
 | GET | `/api/v1/executions` | List executions |
-| GET | `/api/v1/executions/{id}` | Get execution |
-| GET | `/api/v1/executions/{id}/spans` | Get spans |
 | GET | `/api/v1/executions/{id}/dag` | Get execution DAG |
 | GET | `/api/v1/executions/{id}/replay` | Replay execution |
 
-Auth header: `Authorization: Bearer f0_live_...` or `Authorization: Bearer alk_live_...`
+Auth header: `Authorization: Bearer f0_live_...`
 
 ---
 
-## 9. Best Practices
+## 7. Best Practices
 
 1. **Dual-log high-value actions** — log to BOTH audit AND telemetry for tool calls, model invocations, and data access.
 2. **Use context managers** — `with client.telemetry.execution(...)` auto-handles start/end and error status.
 3. **Always call `client.flush()`** before process exit — the SDK batches in background threads.
 4. **Use `parent_span_id`** for nested spans to build accurate DAGs in the dashboard.
-5. **Set `agent_name`** on executions — it shows in the dashboard UI as a human-readable label.
+5. **Set `agent_name`** on executions — it shows in the dashboard as a human-readable label.
 6. **Include `metadata`** on both audit events and spans — it's searchable and visible in the dashboard.
 7. **Actor types matter** — use `"human"` for user actions, `"agent"` for AI actions, `"system"` for cron/infra.
-8. **Async ingest is default** — POST to `/v1/events` returns `202` with a `receipt_id`. Use `X-Fact0-Sync: true` header for synchronous commit if needed.
 
 ---
 
-## 10. Common Patterns
+## 8. Common Patterns
 
 ### Wrap every agent run
 ```python
@@ -457,8 +331,7 @@ def handle_request(user_input: str):
         trigger="user_message",
         metadata={"input": user_input[:120]},
     ) as ex:
-        # ... agent logic with spans ...
-        pass
+        pass  # agent logic with spans
 
     client.audit.log(
         actor={"id": "support-agent", "type": "agent"},
@@ -487,15 +360,726 @@ if not result["valid"]:
 ```
 ````
 
-</Accordion>
+    </Accordion>
+  </Tab>
+
+  <Tab title="TypeScript">
+    <Accordion title="Click to expand the full TypeScript agent prompt">
+
+````markdown
+# Fact0 Integration Guide for AI Coding Agents — TypeScript / Node.js
+
+You are integrating **Fact0** — a tamper-evident audit log and execution telemetry platform for AI agents.
+
+- **Docs:** https://docs.fact0.io
+- **API base:** https://api.fact0.io
+- **Dashboard:** https://app.fact0.io
+- **Full LLM context:** https://docs.fact0.io/llms-full.txt
+
+---
+
+## 1. Installation
+
+```bash
+npm install @fact0/sdk
+```
+
+Requires Node.js 18+. **Never import from local wrapper paths** — always use `@fact0/sdk`. Use this in server-side contexts only (Next.js route handlers, Node agents, workers) — never in browser code.
+
+---
+
+## 2. Authentication
+
+Get an API key from https://app.fact0.io → Settings → API Keys.
+
+Keys are prefixed `f0_live_…`. They have a **scope**:
+- `write` — can append audit events and ingest telemetry
+- `read` — can query events, verify chains, export PDFs
+
+```bash
+export FACT0_API_KEY="f0_live_..."
+```
+
+---
+
+## 3. Core Concepts
+
+Fact0 has **two pipelines** — use both together for full coverage:
+
+| Pipeline | Purpose | When to use |
+|----------|---------|-------------|
+| **Audit Log** | Tamper-evident, hash-chained compliance ledger | Every action that matters for security reviews: tool calls, data access, approvals, policy checks |
+| **Telemetry** | Execution tracing with spans, DAGs, and replay | Debugging agent runs: model invocations, tool calls, state mutations, timing |
+
+### Audit Event Shape
+```json
+{
+  "actor":    {"id": "agent-1", "type": "agent"},
+  "action":   "document.delete",
+  "resource": {"id": "doc_456", "type": "document", "name": "Q3 Report"},
+  "outcome":  "success"
+}
+```
+
+- **Actor types**: `"human"`, `"agent"`, `"system"`
+- **Outcomes**: `"success"`, `"failure"`, `"error"`
+- **metadata**: optional object for extra context (IP, tokens, model name, etc.)
+
+### Telemetry Span Types
+```
+TOOL_CALL          — external tool/API invocation
+MODEL_INVOCATION   — LLM inference call
+STATE_MUTATION     — agent memory/state write
+HUMAN_APPROVAL     — human-in-the-loop decision gate
+POLICY_EVALUATION  — guardrail or policy check
+CUSTOM             — any other span
+```
+
+---
+
+## 4. TypeScript SDK — Full API Reference
+
+### Client Setup
+```typescript
+import { Fact0Client } from "@fact0/sdk";
+
+const client = new Fact0Client({
+  apiKey: process.env.FACT0_API_KEY!,
+  // baseUrl defaults to https://api.fact0.io — override only for local dev
+});
+```
+
+### Audit Logging
+```typescript
+// Single event
+await client.audit.log({
+  actor: { id: "user_123", type: "human", email: "user@example.com" },
+  action: "document.delete",
+  resource: { id: "doc_456", type: "document", name: "Q3 Report" },
+  outcome: "success",
+  metadata: { ip: "203.0.113.5" },
+});
+
+// Batch (up to 1000 events)
+await client.audit.logBatch([event1, event2]);
+```
+
+### Audit Queries & Verification
+```typescript
+// List events with filters
+const events = await client.audit.listEvents({
+  actor_id: "agent-1",
+  action: "document.delete",
+  outcome: "failure",
+  page_size: 50,
+});
+
+// Get single event
+const event = await client.audit.getEvent("evt_01HX3K...");
+
+// Verify hash chain integrity
+const result = await client.audit.verify();
+// → { valid: true, events_checked: 31847, root_hash: "sha256:..." }
+
+// Export SOC 2-style PDF audit pack (returns ArrayBuffer)
+const pdfBuffer = await client.audit.exportPdf({ from: "2024-01-01", to: "2024-06-01" });
+
+// Export evidence ZIP (returns ArrayBuffer)
+const zipBuffer = await client.audit.exportEvidencePack({ from: "2024-01-01", to: "2024-06-01" });
+
+// Poll async ingest receipt
+const receipt = await client.audit.getReceipt("rcpt_01...");
+```
+
+### Execution Telemetry
+```typescript
+// 1. Start the execution
+const execution = await client.telemetry.startExecution({
+  agent_id: "customer-support-bot",
+  agent_name: "Support Bot",
+  trigger: "user_query",
+});
+const executionId = execution.id as string;
+
+// 2. Ingest spans with parent-child relationships
+await client.telemetry.ingestSpans(executionId, [
+  {
+    span_id: "span-1",
+    span_type: "TOOL_CALL",
+    name: "Search Knowledge Base",
+    start_time: new Date().toISOString(),
+    end_time: new Date().toISOString(),
+    tool_call: {
+      tool_name: "knowledge_search",
+      input: { inline: { query: "refund policy" }, size_bytes: 32 },
+      output: { inline: { hits: 5 }, size_bytes: 128 },
+      duration_ms: 210,
+    },
+  },
+  {
+    span_id: "span-2",
+    span_type: "MODEL_INVOCATION",
+    name: "Generate Response",
+    parent_span_id: "span-1",
+    start_time: new Date().toISOString(),
+    end_time: new Date().toISOString(),
+    model_invocation: {
+      model_name: "claude-3-5-sonnet",
+      model_provider: "anthropic",
+      prompt_tokens: 2100,
+      completion_tokens: 450,
+      total_tokens: 2550,
+      session_id: "session_9a2f1b",
+      turn_sequence: 2,
+      prompt_name: "customer-inquiry",
+      prompt_version: 3,
+      cost_usd: 0.00975,
+    },
+  },
+]);
+
+// 3. End the execution
+await client.telemetry.endExecution(executionId, "COMPLETED");
+// Status values: "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED"
+```
+
+### Read & Query Methods
+```typescript
+// List all executions
+const execs = await client.telemetry.listExecutions({ page_size: 50 });
+
+// Get full execution including spans
+const exec = await client.telemetry.getExecution(executionId);
+const spans = await client.telemetry.getSpans(executionId);
+
+// Get backend-computed execution DAG
+const dag = await client.telemetry.getDag(executionId);
+
+// Get replay frames for step-by-step debugging
+const replay = await client.telemetry.replay(executionId, { from_sequence: 0, to_sequence: 10 });
+```
+
+---
+
+## 5. Framework Integrations
+
+### Next.js Route Handler
+```typescript
+// app/api/agent/route.ts
+import { Fact0Client } from "@fact0/sdk";
+import { NextResponse } from "next/server";
+
+const fact0 = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+
+export async function POST(req: Request) {
+  const { input } = await req.json();
+
+  await fact0.audit.log({
+    actor: { id: "api-agent", type: "agent" },
+    action: "agent.run.started",
+    resource: { id: crypto.randomUUID(), type: "agent.execution" },
+    outcome: "success",
+    metadata: { input: input.slice(0, 200) },
+  });
+
+  // ... agent logic ...
+
+  return NextResponse.json({ result });
+}
+```
+
+### Express Middleware
+```typescript
+import express from "express";
+import { Fact0Client } from "@fact0/sdk";
+
+const fact0 = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+const app = express();
+
+app.use(async (req, res, next) => {
+  await fact0.audit.log({
+    actor: { id: req.headers["x-user-id"] as string || "anonymous", type: "human" },
+    action: `api.${req.method.toLowerCase()}.${req.path.replace(/\//g, ".")}`,
+    resource: { id: req.url, type: "http.request" },
+    outcome: "success",
+  });
+  next();
+});
+```
+
+### OpenTelemetry (zero code changes)
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.fact0.io"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer f0_live_..."
+```
+
+---
+
+## 6. REST API Quick Reference
+
+### Audit API (base: https://api.fact0.io)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/v1/events` | write | Append single event (async, returns receipt_id) |
+| POST | `/v1/events/batch` | write | Append up to 1000 events |
+| GET | `/v1/events` | read | List/filter events |
+| GET | `/v1/events/{id}` | read | Get single event |
+| GET | `/v1/events/{id}/verify` | read | Verify single event hash |
+| GET | `/v1/verify` | read | Verify full chain integrity |
+| GET | `/v1/events/stream` | read | Live SSE stream |
+| GET | `/v1/export/pdf` | read | SOC 2 PDF audit pack |
+| GET | `/v1/export/evidence-pack` | read | ZIP evidence pack |
+| GET | `/v1/receipts/{id}` | read | Poll async ingest receipt |
+
+### Telemetry API (base: https://api.fact0.io)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/executions` | Start execution |
+| POST | `/api/v1/executions/{id}/spans` | Ingest spans |
+| POST | `/api/v1/executions/{id}/events` | Ingest events |
+| PUT | `/api/v1/executions/{id}/end` | End execution |
+| GET | `/api/v1/executions` | List executions |
+| GET | `/api/v1/executions/{id}/dag` | Get execution DAG |
+| GET | `/api/v1/executions/{id}/replay` | Replay execution |
+
+Auth header: `Authorization: Bearer f0_live_...`
+
+---
+
+## 7. Best Practices
+
+1. **Dual-log high-value actions** — log to BOTH audit AND telemetry for tool calls, model invocations, and data access.
+2. **Use `parent_span_id`** to link child spans to parent spans — the backend reconstructs the DAG from these relationships.
+3. **Always `await` audit calls** in async contexts — fire-and-forget drops events on unhandled rejections.
+4. **Set `agent_name`** on executions — it shows in the dashboard as a human-readable label.
+5. **Include `metadata`** on both audit events and spans — it's searchable and visible in the dashboard.
+6. **Actor types matter** — use `"human"` for user actions, `"agent"` for AI actions, `"system"` for cron/infra.
+7. **Server-side only** — never expose the API key to browser code; use `@fact0/sdk` in route handlers, workers, and agents only.
+
+---
+
+## 8. Common Patterns
+
+### Wrap every agent run
+```typescript
+async function handleRequest(userId: string, input: string) {
+  const runId = crypto.randomUUID();
+
+  await client.audit.log({
+    actor: { id: "support-agent", type: "agent" },
+    action: "agent.run.started",
+    resource: { id: runId, type: "agent.execution" },
+    outcome: "success",
+    metadata: { user_id: userId, input: input.slice(0, 200) },
+  });
+
+  const execution = await client.telemetry.startExecution({
+    agent_id: "support-agent",
+    trigger: "user_message",
+  });
+
+  // ... agent logic with ingestSpans ...
+
+  await client.telemetry.endExecution(execution.id as string, "COMPLETED");
+
+  await client.audit.log({
+    actor: { id: "support-agent", type: "agent" },
+    action: "agent.run.completed",
+    resource: { id: runId, type: "agent.execution" },
+    outcome: "success",
+  });
+}
+```
+
+### Log PII access for compliance
+```typescript
+await client.audit.log({
+  actor: { id: "support-agent", type: "agent" },
+  action: "pii.access",
+  resource: { id: "acct_7f2a", type: "account", name: "Customer Account" },
+  outcome: "success",
+  metadata: { fields: ["email", "phone"], reason: "support_inquiry" },
+});
+```
+
+### Verify chain integrity programmatically
+```typescript
+const result = await client.audit.verify();
+if (!result.valid) {
+  console.error("Chain broken at event:", result.first_broken_event_id);
+}
+```
+````
+
+    </Accordion>
+  </Tab>
+
+  <Tab title="Go">
+    <Accordion title="Click to expand the full Go agent prompt">
+
+````markdown
+# Fact0 Integration Guide for AI Coding Agents — Go
+
+You are integrating **Fact0** — a tamper-evident audit log and execution telemetry platform for AI agents.
+
+- **Docs:** https://docs.fact0.io
+- **API base:** https://api.fact0.io
+- **Dashboard:** https://app.fact0.io
+- **Full LLM context:** https://docs.fact0.io/llms-full.txt
+
+---
+
+## 1. Installation
+
+```bash
+go get github.com/fact0-ai/fact0/sdk/go
+```
+
+Requires Go 1.23+. Import as `fact0 "github.com/fact0-ai/fact0/sdk/go"`.
+
+---
+
+## 2. Authentication
+
+Get an API key from https://app.fact0.io → Settings → API Keys.
+
+Keys are prefixed `f0_live_…`. They have a **scope**:
+- `write` — can append audit events and ingest telemetry
+- `read` — can query events, verify chains, export PDFs
+
+```bash
+export FACT0_API_KEY="f0_live_..."
+```
+
+---
+
+## 3. Core Concepts
+
+Fact0 has **two pipelines** — use both together for full coverage:
+
+| Pipeline | Purpose | When to use |
+|----------|---------|-------------|
+| **Audit Log** | Tamper-evident, hash-chained compliance ledger | Every action that matters for security reviews: tool calls, data access, approvals, policy checks |
+| **Telemetry** | Execution tracing with spans, DAGs, and replay | Debugging agent runs: model invocations, tool calls, state mutations, timing |
+
+### Audit Event Shape
+```json
+{
+  "actor":    {"id": "agent-1", "type": "agent"},
+  "action":   "document.delete",
+  "resource": {"id": "doc_456", "type": "document", "name": "Q3 Report"},
+  "outcome":  "success"
+}
+```
+
+- **Actor types**: `"human"`, `"agent"`, `"system"`
+- **Outcomes**: `"success"`, `"failure"`, `"error"`
+- **Metadata**: optional `map[string]interface{}` for extra context
+
+### Telemetry Span Types
+```
+TOOL_CALL          — external tool/API invocation
+MODEL_INVOCATION   — LLM inference call
+STATE_MUTATION     — agent memory/state write
+HUMAN_APPROVAL     — human-in-the-loop decision gate
+POLICY_EVALUATION  — guardrail or policy check
+CUSTOM             — any other span
+```
+
+---
+
+## 4. Go SDK — Full API Reference
+
+### Client Setup
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+
+    fact0 "github.com/fact0-ai/fact0/sdk/go"
+)
+
+func main() {
+    client := fact0.NewClient(fact0.Config{
+        APIKey: os.Getenv("FACT0_API_KEY"),
+        // BaseURL defaults to https://api.fact0.io
+        // Timeout defaults to 30s; MaxRetries defaults to 3
+    })
+    _ = client
+}
+```
+
+### Audit Logging
+```go
+ctx := context.Background()
+
+// Single event
+err := client.Audit.Log(ctx, fact0.AuditEventInput{
+    Actor:    fact0.Actor{ID: "user_123", Type: "human", Email: "user@example.com"},
+    Action:   "document.delete",
+    Resource: fact0.Resource{ID: "doc_456", Type: "document", Name: "Q3 Report"},
+    Outcome:  "success",
+    Metadata: map[string]interface{}{"ip": "203.0.113.5"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// Batch (up to 1000 events)
+result, err := client.Audit.LogBatch(ctx, []fact0.AuditEventInput{event1, event2})
+```
+
+### Audit Queries & Verification
+```go
+// List events with filters
+events, err := client.Audit.ListEvents(ctx, "?actor_id=agent-1&action=document.delete&outcome=failure&page_size=50")
+
+// Get single event
+event, err := client.Audit.GetEvent(ctx, "evt_01HX3K...")
+
+// Verify hash chain integrity
+result, err := client.Audit.Verify(ctx, "")
+// result["valid"] == true, result["events_checked"] == 31847
+
+// Verify a date range
+result, err = client.Audit.Verify(ctx, "?from=2024-01-01&to=2024-06-01")
+
+// Get async receipt
+receipt, err := client.Audit.GetReceipt(ctx, "rcpt_01...")
+```
+
+### Execution Telemetry
+```go
+// 1. Start the execution
+exec, err := client.Telemetry.StartExecution(ctx, fact0.StartExecutionRequest{
+    AgentID:   "customer-support-bot",
+    AgentName: "Support Bot",
+    Trigger:   "user_query",
+})
+if err != nil {
+    log.Fatal(err)
+}
+executionID := exec["id"].(string)
+
+// 2. Ingest spans with parent-child relationships
+_, err = client.Telemetry.IngestSpans(ctx, executionID, []map[string]interface{}{
+    {
+        "span_id":    "span-1",
+        "span_type":  "TOOL_CALL",
+        "name":       "Search Knowledge Base",
+        "start_time": "2024-01-01T00:00:00Z",
+        "end_time":   "2024-01-01T00:00:00.210Z",
+        "tool_call": map[string]interface{}{
+            "tool_name":   "knowledge_search",
+            "duration_ms": 210,
+            "input":       map[string]interface{}{"inline": map[string]interface{}{"query": "refund policy"}},
+            "output":      map[string]interface{}{"inline": map[string]interface{}{"hits": 5}},
+        },
+    },
+    {
+        "span_id":        "span-2",
+        "span_type":      "MODEL_INVOCATION",
+        "name":           "Generate Response",
+        "parent_span_id": "span-1",
+        "start_time":     "2024-01-01T00:00:00.210Z",
+        "end_time":       "2024-01-01T00:00:01.450Z",
+        "model_invocation": map[string]interface{}{
+            "model_name":        "gpt-4o",
+            "model_provider":    "openai",
+            "prompt_tokens":     2100,
+            "completion_tokens": 450,
+            "total_tokens":      2550,
+            "session_id":        "session_9a2f1b",
+            "turn_sequence":     2,
+            "prompt_name":       "customer-inquiry",
+            "prompt_version":    3,
+            "cost_usd":          0.00975,
+        },
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// 3. End the execution
+_, err = client.Telemetry.EndExecution(ctx, executionID, "COMPLETED")
+// Status values: "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED"
+```
+
+### Read & Query Methods
+```go
+// List all executions
+execs, err := client.Telemetry.ListExecutions(ctx, "?page_size=50")
+
+// Get execution summary
+exec, err := client.Telemetry.GetExecution(ctx, executionID)
+
+// Get backend-computed DAG
+dag, err := client.Telemetry.GetDAG(ctx, executionID)
+
+// Get replay frames
+replay, err := client.Telemetry.Replay(ctx, executionID, "?from_sequence=0&to_sequence=10")
+```
+
+### Config Options
+```go
+type Config struct {
+    APIKey     string        // required
+    BaseURL    string        // defaults to https://api.fact0.io
+    SyncIngest bool          // true = wait for commit (X-Fact0-Sync header)
+    Timeout    time.Duration // defaults to 30s
+    MaxRetries int           // defaults to 3; retries on 429 + 5xx
+}
+```
+
+---
+
+## 5. Framework Integrations
+
+### HTTP Middleware (net/http)
+```go
+func Fact0Middleware(fact0Client *fact0.Client, next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        _ = fact0Client.Audit.Log(r.Context(), fact0.AuditEventInput{
+            Actor:    fact0.Actor{ID: r.Header.Get("X-User-ID"), Type: "human"},
+            Action:   "api." + strings.ToLower(r.Method) + "." + strings.ReplaceAll(r.URL.Path, "/", "."),
+            Resource: fact0.Resource{ID: r.URL.String(), Type: "http.request"},
+            Outcome:  "success",
+        })
+        next.ServeHTTP(w, r)
+    })
+}
+```
+
+### OpenTelemetry (zero code changes)
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.fact0.io"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer f0_live_..."
+```
+
+---
+
+## 6. REST API Quick Reference
+
+### Audit API (base: https://api.fact0.io)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/v1/events` | write | Append single event (async, returns receipt_id) |
+| POST | `/v1/events/batch` | write | Append up to 1000 events |
+| GET | `/v1/events` | read | List/filter events |
+| GET | `/v1/events/{id}` | read | Get single event |
+| GET | `/v1/events/{id}/verify` | read | Verify single event hash |
+| GET | `/v1/verify` | read | Verify full chain integrity |
+| GET | `/v1/events/stream` | read | Live SSE stream |
+| GET | `/v1/export/pdf` | read | SOC 2 PDF audit pack |
+| GET | `/v1/export/evidence-pack` | read | ZIP evidence pack |
+| GET | `/v1/receipts/{id}` | read | Poll async ingest receipt |
+
+### Telemetry API (base: https://api.fact0.io)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/executions` | Start execution |
+| POST | `/api/v1/executions/{id}/spans` | Ingest spans |
+| POST | `/api/v1/executions/{id}/events` | Ingest events |
+| PUT | `/api/v1/executions/{id}/end` | End execution |
+| GET | `/api/v1/executions` | List executions |
+| GET | `/api/v1/executions/{id}/dag` | Get execution DAG |
+| GET | `/api/v1/executions/{id}/replay` | Replay execution |
+
+Auth header: `Authorization: Bearer f0_live_...`
+
+---
+
+## 7. Best Practices
+
+1. **Dual-log high-value actions** — log to BOTH audit AND telemetry for tool calls, model invocations, and data access.
+2. **Always check errors** — `client.Audit.Log` returns an error; don't swallow it with `_` in production.
+3. **Use context cancellation** — pass a real `ctx` with deadlines so SDK calls respect your service's shutdown budget.
+4. **Use `parent_span_id`** for nested spans to build accurate DAGs in the dashboard.
+5. **Set `AgentName`** on executions — it shows in the dashboard as a human-readable label.
+6. **Include `Metadata`** on both audit events and spans — it's searchable and visible in the dashboard.
+7. **Actor types matter** — use `"human"` for user actions, `"agent"` for AI actions, `"system"` for cron/infra.
+
+---
+
+## 8. Common Patterns
+
+### Wrap every agent run
+```go
+func handleRequest(ctx context.Context, client *fact0.Client, userID, input string) error {
+    runID := uuid.New().String()
+
+    _ = client.Audit.Log(ctx, fact0.AuditEventInput{
+        Actor:    fact0.Actor{ID: "support-agent", Type: "agent"},
+        Action:   "agent.run.started",
+        Resource: fact0.Resource{ID: runID, Type: "agent.execution"},
+        Outcome:  "success",
+        Metadata: map[string]interface{}{"user_id": userID, "input": input[:min(200, len(input))]},
+    })
+
+    exec, err := client.Telemetry.StartExecution(ctx, fact0.StartExecutionRequest{
+        AgentID: "support-agent",
+        Trigger: "user_message",
+    })
+    if err != nil {
+        return err
+    }
+
+    // ... agent logic with IngestSpans ...
+
+    _, _ = client.Telemetry.EndExecution(ctx, exec["id"].(string), "COMPLETED")
+
+    _ = client.Audit.Log(ctx, fact0.AuditEventInput{
+        Actor:    fact0.Actor{ID: "support-agent", Type: "agent"},
+        Action:   "agent.run.completed",
+        Resource: fact0.Resource{ID: runID, Type: "agent.execution"},
+        Outcome:  "success",
+    })
+
+    return nil
+}
+```
+
+### Log PII access for compliance
+```go
+_ = client.Audit.Log(ctx, fact0.AuditEventInput{
+    Actor:    fact0.Actor{ID: "support-agent", Type: "agent"},
+    Action:   "pii.access",
+    Resource: fact0.Resource{ID: "acct_7f2a", Type: "account", Name: "Customer Account"},
+    Outcome:  "success",
+    Metadata: map[string]interface{}{"fields": []string{"email", "phone"}, "reason": "support_inquiry"},
+})
+```
+
+### Verify chain integrity programmatically
+```go
+result, err := client.Audit.Verify(ctx, "")
+if err != nil {
+    log.Fatal(err)
+}
+if valid, ok := result["valid"].(bool); !ok || !valid {
+    log.Printf("Chain broken at event: %v", result["first_broken_event_id"])
+}
+```
+````
+
+    </Accordion>
+  </Tab>
+</Tabs>
 
 ---
 
 ## How to Use
 
 <Steps>
+  <Step title="Select your language">
+    Click the **Python**, **TypeScript**, or **Go** tab above to see the prompt for your stack.
+  </Step>
   <Step title="Copy the prompt">
-    Expand the accordion above and copy the entire markdown block.
+    Expand the accordion and copy the entire markdown block.
   </Step>
   <Step title="Paste into your agent">
     Add it to your AI coding tool:
