@@ -57,10 +57,18 @@ developer (OS user by default, or `FACT0_CC_ACTOR_ID` / `FACT0_CC_ACTOR_EMAIL`),
 
 ## Privacy model
 
-Privacy-first by default: prompts and tool inputs/outputs are captured as a
-SHA-256 hash plus length/summary metadata, and redaction happens **on your
-machine before anything is sent**. Set `FACT0_CC_CAPTURE_RAW=1` to opt in to raw
-text capture where that is acceptable.
+Redaction happens **on your machine before anything is sent**, at one of three
+levels set by `FACT0_CC_CAPTURE_MODE`:
+
+| Mode | What ships raw | What stays hashed |
+|---|---|---|
+| `metadata` (default) | File paths, command text, prompts, tool names | File contents, tool outputs |
+| `hash` | Nothing — every string is SHA-256 + length | Everything |
+| `raw` | Everything, including contents and outputs | Nothing |
+
+The `metadata` default is what makes the Coding Agents dashboard view readable
+(`Edit api/handler.go`, `Bash go test ./...`) without shipping file contents.
+Use `hash` for locked-down environments.
 
 ## Delivery guarantees
 
@@ -70,6 +78,10 @@ queue and redelivers it automatically on a later hook invocation — oldest firs
 with original event timestamps preserved in the hash chain. Letters that fail
 20 deliveries are kept for inspection but never retried. `fact0-cc status`
 reports the pending count.
+
+Executions self-heal too: if a session has no execution (the session-start call
+failed, or the plugin was installed mid-session), the next hook lazily starts
+one and telemetry resumes — no session ever permanently loses its trace.
 
 ## Governance (block & prove)
 
@@ -101,7 +113,7 @@ fact0-cc verify
 | `FACT0_BASE_URL` | `https://api.fact0.io` | Self-hosted / staging override. |
 | `FACT0_CC_ACTOR_ID` | OS user | Human actor identity for audit events. |
 | `FACT0_CC_ACTOR_EMAIL` | — | Human actor email (e.g. git email). |
-| `FACT0_CC_CAPTURE_RAW` | off | Include raw prompt/tool text in addition to hashes. |
+| `FACT0_CC_CAPTURE_MODE` | `metadata` | `hash` \| `metadata` \| `raw` — see Privacy model. |
 | `FACT0_CC_ENFORCE` | off | Enable built-in governance safety rules. |
 | `FACT0_CC_POLICY_FILE` | — | Path to a custom policy JSON. |
 | `FACT0_CC_DISABLED` | off | Disable the collector entirely. |
