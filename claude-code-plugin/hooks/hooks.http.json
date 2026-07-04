@@ -1,0 +1,131 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

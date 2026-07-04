@@ -1,0 +1,9 @@
+{
+  "session_id": "8f3c1d2e-4a5b-6c7d-8e9f-0a1b2c3d4e5f",
+  "transcript_path": "/Users/dev/.claude/projects/demo/8f3c1d2e.jsonl",
+  "cwd": "/Users/dev/work/demo-service",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStop",
+  "agent_type": "general-purpose",
+  "agent_id": "agent_7d6c5b4a3210"
+}

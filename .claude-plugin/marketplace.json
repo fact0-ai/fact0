@@ -1,0 +1,14 @@
+{
+  "name": "fact0",
+  "owner": {
+    "name": "Fact0",
+    "url": "https://fact0.io"
+  },
+  "plugins": [
+    {
+      "name": "fact0-claude-code",
+      "source": "./claude-code-plugin",
+      "description": "Stream every Claude Code session into Fact0 as tamper-evident audit + telemetry."
+    }
+  ]
+}

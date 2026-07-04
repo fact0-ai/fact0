@@ -1,0 +1,40 @@
+{
+  "rules": [
+    {
+      "match": "(?i)\\brm\\s+(-[a-z]*r[a-z]*\\s+-[a-z]*f|-[a-z]*f[a-z]*r|-rf|-fr)\\b",
+      "tool": "Bash",
+      "action": "deny",
+      "reason": "Recursive force delete (rm -rf) is blocked: destructive and irreversible. Remove specific paths explicitly, or get a human to run this outside the agent."
+    },
+    {
+      "match": "(?i)(curl|wget)\\b.*\\|\\s*(ba)?sh\\b",
+      "tool": "Bash",
+      "action": "deny",
+      "reason": "Piping a downloaded script straight into a shell (curl ... | sh) executes unverified remote code. Download, inspect, then run deliberately."
+    },
+    {
+      "match": "(?i)\\b(sudo|chmod\\s+777|mkfs|dd\\s+if=|:\\(\\)\\s*\\{)",
+      "tool": "Bash",
+      "action": "deny",
+      "reason": "Privilege escalation / disk-wiping / fork-bomb patterns (sudo, chmod 777, mkfs, dd if=, fork bombs) are blocked for AI-initiated commands."
+    },
+    {
+      "match": "(?i)(^|/)\\.env(\\.[a-z]+)?$",
+      "tool": "Edit",
+      "action": "deny",
+      "reason": "Editing .env files is blocked: they hold secrets and credentials. Manage environment configuration through your secrets manager, not the agent."
+    },
+    {
+      "match": "(?i)(^|/)\\.env(\\.[a-z]+)?$",
+      "tool": "Write",
+      "action": "deny",
+      "reason": "Writing .env files is blocked: they hold secrets and credentials. Manage environment configuration through your secrets manager, not the agent."
+    },
+    {
+      "match": "(?i)(id_rsa|id_ed25519|\\.pem$|\\.p12$|credentials$|\\.aws/credentials)",
+      "tool": "Read",
+      "action": "deny",
+      "reason": "Reading private keys and credential files (id_rsa, *.pem, ~/.aws/credentials) is blocked to keep secrets out of the model context."
+    }
+  ]
+}
