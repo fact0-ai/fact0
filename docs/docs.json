@@ -149,6 +149,12 @@
             ]
           },
           {
+            "group": "Coding agents",
+            "pages": [
+              "integrations/claude-code"
+            ]
+          },
+          {
             "group": "Agent frameworks",
             "pages": [
               "integrations/langchain",
