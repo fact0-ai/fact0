@@ -63,6 +63,54 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "${FACT0_BASE_URL}/v1/integrations/claude-code",
+            "headers": {
+              "Authorization": "Bearer ${FACT0_API_KEY}"
+            },
+            "allowedEnvVars": ["FACT0_API_KEY"],
+            "async": true
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "matcher": "",

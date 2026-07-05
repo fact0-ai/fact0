@@ -1,0 +1,58 @@
+name: claude-code-plugin release
+
+# Cuts the collector binaries the bin/fact0-cc bootstrap script downloads.
+# Tag format: plugin/v<version>, where <version> MUST match
+# claude-code-plugin/VERSION (the bootstrap resolves assets by that file).
+
+on:
+  push:
+    tags:
+      - "plugin/v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: claude-code-plugin/collector/go.sum
+
+      - name: Verify tag matches VERSION file
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#plugin/v}"
+          FILE_VERSION="$(tr -d '[:space:]' < claude-code-plugin/VERSION)"
+          if [ "$TAG_VERSION" != "$FILE_VERSION" ]; then
+            echo "tag $TAG_VERSION != VERSION file $FILE_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Test
+        working-directory: claude-code-plugin/collector
+        run: go test ./...
+
+      - name: Build release binaries
+        working-directory: claude-code-plugin/collector
+        run: |
+          VERSION="${GITHUB_REF_NAME#plugin/v}"
+          mkdir -p ../dist
+          for target in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
+            GOOS=${target%/*} GOARCH=${target#*/} CGO_ENABLED=0 \
+              go build -trimpath -ldflags "-s -w" \
+              -o "../dist/fact0-cc_${VERSION}_${target%/*}_${target#*/}" .
+          done
+          cd ../dist && sha256sum fact0-cc_* > checksums.txt && cat checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Claude Code plugin ${GITHUB_REF_NAME#plugin/}" \
+            --notes "Collector binaries for the fact0-claude-code plugin. The plugin's bin/fact0-cc bootstrap downloads and checksum-verifies these automatically on first run." \
+            claude-code-plugin/dist/*

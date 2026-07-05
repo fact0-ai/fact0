@@ -1,3 +1,6 @@
-bin/
+# Compiled collector binaries are never committed: the checked-in
+# bin/fact0-cc bootstrap script downloads the release binary on first run.
+bin/fact0-cc-dev
+bin/.*.tmp.*
 *.log
 collector/collector

@@ -10,6 +10,8 @@ set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-cd "${PLUGIN_DIR}/collector" && go mod tidy && go build -o "${PLUGIN_DIR}/bin/fact0-cc" .
+# The dev binary sits next to the checked-in bin/fact0-cc bootstrap script,
+# which prefers it over downloading a release binary.
+cd "${PLUGIN_DIR}/collector" && go mod tidy && go build -o "${PLUGIN_DIR}/bin/fact0-cc-dev" .
 
-echo "Build succeeded: ${PLUGIN_DIR}/bin/fact0-cc"
+echo "Build succeeded: ${PLUGIN_DIR}/bin/fact0-cc-dev"

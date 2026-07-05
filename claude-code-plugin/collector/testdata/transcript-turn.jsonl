@@ -1,0 +1,7 @@
+{"type":"user","message":{"role":"user","content":"an older prompt from a previous turn"}}
+{"type":"assistant","message":{"id":"msg_old","model":"claude-fable-5","content":[{"type":"text","text":"old turn answer that must NOT be extracted"}],"usage":{"input_tokens":10,"output_tokens":99,"cache_read_input_tokens":100,"cache_creation_input_tokens":0}}}
+{"type":"user","message":{"role":"user","content":"fix the failing auth test"}}
+{"type":"assistant","message":{"id":"msg_a","model":"claude-fable-5","content":[{"type":"thinking","thinking":"..."}],"usage":{"input_tokens":5,"output_tokens":200,"cache_read_input_tokens":400000,"cache_creation_input_tokens":2000}}}
+{"type":"assistant","message":{"id":"msg_a","model":"claude-fable-5","content":[{"type":"tool_use","name":"Bash","input":{"command":"go test ./..."}}],"usage":{"input_tokens":5,"output_tokens":200,"cache_read_input_tokens":400000,"cache_creation_input_tokens":2000}}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"ok"}]}}
+{"type":"assistant","message":{"id":"msg_b","model":"claude-fable-5","content":[{"type":"text","text":"The auth test passes now."}],"usage":{"input_tokens":8,"output_tokens":150,"cache_read_input_tokens":410000,"cache_creation_input_tokens":500}}}

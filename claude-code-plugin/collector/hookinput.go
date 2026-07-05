@@ -20,6 +20,7 @@ type HookInput struct {
 	AgentType      string          `json:"agent_type"`
 	AgentID        string          `json:"agent_id"`
 	Reason         string          `json:"reason"`
+	Error          string          `json:"error"` // PostToolUseFailure payloads
 
 	// Best-effort cost/usage fields carried by newer Claude Code PostToolUse
 	// payloads. All optional and version-tolerant; absent on older versions.

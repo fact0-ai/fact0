@@ -43,19 +43,24 @@ func safetyDefaults() []PolicyRule {
 	}
 }
 
-// LoadPolicy reads the governance policy from the file named by
-// FACT0_CC_POLICY_FILE. The second return value reports whether governance is
-// active at all.
+// LoadPolicy assembles the active governance policy. The second return value
+// reports whether governance is active at all.
 //
-// Behavior (fail-open by design):
-//   - If FACT0_CC_POLICY_FILE is unset, missing, or fails to parse, the file
-//     rules are empty.
-//   - If FACT0_CC_ENFORCE is truthy, a small set of conservative safety
-//     defaults is always appended.
-//   - The boolean is true only when at least one rule is in effect; otherwise
-//     governance is effectively disabled (allow-all).
+// Merge order (all sources fail-open):
+//  1. Server-managed rules from the on-disk policy cache (see policy_cache.go)
+//     — DISK ONLY here; the network refresh happens on session-start/stop,
+//     never on the synchronous PreToolUse path.
+//  2. Local file rules from FACT0_CC_POLICY_FILE.
+//  3. Safety defaults, when FACT0_CC_ENFORCE is truthy OR the server policy
+//     sets enforce — the org can turn baseline enforcement on centrally.
 func LoadPolicy(cfg Config) (Policy, bool) {
 	var pol Policy
+
+	remoteEnforce := false
+	if cache, ok := LoadPolicyCache(cfg); ok {
+		pol.Rules = append(pol.Rules, cache.Rules...)
+		remoteEnforce = cache.Enforce
+	}
 
 	path := strings.TrimSpace(os.Getenv("FACT0_CC_POLICY_FILE"))
 	if path != "" {
@@ -71,7 +76,7 @@ func LoadPolicy(cfg Config) (Policy, bool) {
 		}
 	}
 
-	if isTruthy(os.Getenv("FACT0_CC_ENFORCE")) {
+	if remoteEnforce || isTruthy(os.Getenv("FACT0_CC_ENFORCE")) {
 		pol.Rules = append(pol.Rules, safetyDefaults()...)
 	}
 

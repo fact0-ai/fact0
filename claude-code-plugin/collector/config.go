@@ -23,13 +23,14 @@ const (
 // Config holds the collector's runtime configuration, sourced from the
 // environment. All fields are populated by LoadConfig.
 type Config struct {
-	APIKey      string
-	BaseURL     string
-	ActorID     string
-	ActorEmail  string
-	CaptureMode string
-	Disabled    bool
-	StateDir    string
+	APIKey       string
+	BaseURL      string
+	ActorID      string
+	ActorEmail   string
+	CaptureMode  string
+	Disabled     bool
+	StateDir     string
+	RemotePolicy bool
 }
 
 // RawCapture reports whether full raw capture (contents and outputs) is on.
@@ -67,19 +68,27 @@ func defaultStateDir() string {
 //	FACT0_CC_CAPTURE_RAW   Legacy: truthy (1/true/yes/on) implies mode raw.
 //	FACT0_CC_DISABLED      Truthy to disable the collector entirely.
 //	FACT0_CC_STATE_DIR     Override the per-session state directory.
+//	FACT0_CC_REMOTE_POLICY Server-managed governance policy fetch
+//	                       (default: on when an API key is set).
 func LoadConfig() Config {
 	stateDir := strings.TrimSpace(os.Getenv("FACT0_CC_STATE_DIR"))
 	if stateDir == "" {
 		stateDir = defaultStateDir()
 	}
+	apiKey := strings.TrimSpace(os.Getenv("FACT0_API_KEY"))
+	remotePolicy := apiKey != ""
+	if v := strings.TrimSpace(os.Getenv("FACT0_CC_REMOTE_POLICY")); v != "" {
+		remotePolicy = isTruthy(v)
+	}
 	return Config{
-		APIKey:      strings.TrimSpace(os.Getenv("FACT0_API_KEY")),
-		BaseURL:     strings.TrimSpace(os.Getenv("FACT0_BASE_URL")),
-		ActorID:     strings.TrimSpace(os.Getenv("FACT0_CC_ACTOR_ID")),
-		ActorEmail:  strings.TrimSpace(os.Getenv("FACT0_CC_ACTOR_EMAIL")),
-		CaptureMode: captureModeFromEnv(),
-		Disabled:    isTruthy(os.Getenv("FACT0_CC_DISABLED")),
-		StateDir:    stateDir,
+		APIKey:       apiKey,
+		BaseURL:      strings.TrimSpace(os.Getenv("FACT0_BASE_URL")),
+		ActorID:      strings.TrimSpace(os.Getenv("FACT0_CC_ACTOR_ID")),
+		ActorEmail:   strings.TrimSpace(os.Getenv("FACT0_CC_ACTOR_EMAIL")),
+		CaptureMode:  captureModeFromEnv(),
+		Disabled:     isTruthy(os.Getenv("FACT0_CC_DISABLED")),
+		StateDir:     stateDir,
+		RemotePolicy: remotePolicy,
 	}
 }
 

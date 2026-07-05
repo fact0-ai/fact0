@@ -29,10 +29,11 @@ type Config struct {
 
 // Client is the unified Fact0 SDK client.
 type Client struct {
-	http      *http.Client
-	cfg       Config
-	Audit     *AuditClient
-	Telemetry *TelemetryClient
+	http       *http.Client
+	cfg        Config
+	Audit      *AuditClient
+	Telemetry  *TelemetryClient
+	Governance *GovernanceClient
 }
 
 // NewClient constructs a Fact0 client.
@@ -55,6 +56,7 @@ func NewClient(cfg Config) *Client {
 	}
 	c.Audit = &AuditClient{parent: c}
 	c.Telemetry = &TelemetryClient{parent: c}
+	c.Governance = &GovernanceClient{parent: c}
 	return c
 }
 

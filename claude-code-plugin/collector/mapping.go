@@ -89,6 +89,11 @@ func startExecution(ctx context.Context, client *fact0.Client, in HookInput, tri
 	if lazy {
 		md["lazy_start"] = "true"
 	}
+	if gi := ReadGitInfo(ctx, in.Cwd); gi.Branch != "" || gi.Commit != "" {
+		md["git_branch"] = gi.Branch
+		md["git_commit"] = gi.Commit
+		md["git_remote"] = gi.Remote
+	}
 	resp, err := client.Telemetry.StartExecution(ctx, fact0.StartExecutionRequest{
 		AgentID:        "claude-code",
 		AgentName:      "Claude Code",
@@ -151,17 +156,23 @@ func HandleSessionStart(ctx context.Context, client *fact0.Client, cfg Config, i
 		return err
 	}
 
+	md := map[string]interface{}{
+		"cwd":             in.Cwd,
+		"permission_mode": in.PermissionMode,
+		"source":          in.Source,
+		"execution_id":    st.ExecutionID,
+	}
+	if gi := ReadGitInfo(ctx, in.Cwd); gi.Branch != "" || gi.Commit != "" {
+		md["git_branch"] = gi.Branch
+		md["git_commit"] = gi.Commit
+		md["git_remote"] = gi.Remote
+	}
 	return auditLog(ctx, client, cfg, fact0.AuditEventInput{
 		Actor:    HumanActor(cfg),
 		Action:   "claude_code.session.start",
 		Resource: fact0.Resource{ID: in.SessionID, Type: "claude_code.session"},
 		Outcome:  "success",
-		Metadata: map[string]interface{}{
-			"cwd":             in.Cwd,
-			"permission_mode": in.PermissionMode,
-			"source":          in.Source,
-			"execution_id":    st.ExecutionID,
-		},
+		Metadata: md,
 	})
 }
 
@@ -236,8 +247,50 @@ func HandlePreTool(ctx context.Context, client *fact0.Client, cfg Config, in Hoo
 	return SaveState(cfg, st)
 }
 
-// HandlePostTool completes the pending tool span, ingests it, and logs an audit event.
+// HandlePostTool completes the pending tool span, ingests it, and logs an
+// audit event. The outcome is sniffed from the payload (error markers, Bash
+// exit codes) so failed tool calls stop masquerading as successes.
 func HandlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in HookInput) error {
+	return handlePostTool(ctx, client, cfg, in, false)
+}
+
+// HandlePostToolFailure handles the PostToolUseFailure hook: same shape as
+// post-tool but the outcome is unconditionally an error.
+func HandlePostToolFailure(ctx context.Context, client *fact0.Client, cfg Config, in HookInput) error {
+	return handlePostTool(ctx, client, cfg, in, true)
+}
+
+// toolCallFailed reports whether the tool call failed, from the explicit
+// error field, common error markers in tool_response, or a non-zero Bash
+// exit code. Mirrors the server-side agentless mapping so both capture paths
+// agree on outcomes.
+func toolCallFailed(in HookInput) bool {
+	if in.Error != "" {
+		return true
+	}
+	var resp map[string]any
+	if len(in.ToolResponse) == 0 || json.Unmarshal(in.ToolResponse, &resp) != nil {
+		return false
+	}
+	if b, ok := resp["is_error"].(bool); ok && b {
+		return true
+	}
+	if b, ok := resp["success"].(bool); ok && !b {
+		return true
+	}
+	if s, ok := resp["status"].(string); ok && strings.EqualFold(s, "error") {
+		return true
+	}
+	if s, ok := resp["error"].(string); ok && s != "" {
+		return true
+	}
+	if code, ok := resp["exit_code"].(float64); ok && code != 0 {
+		return true
+	}
+	return false
+}
+
+func handlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in HookInput, forceError bool) error {
 	st, err := LoadState(cfg, in.SessionID)
 	if err != nil {
 		return err
@@ -256,13 +309,19 @@ func HandlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 
 	execID := ensureExecution(ctx, client, cfg, in, st)
 
+	failed := forceError || toolCallFailed(in)
+	spanStatus, outcome := "COMPLETED", "success"
+	if failed {
+		spanStatus, outcome = "FAILED", "error"
+	}
+
 	endedAt := nowRFC3339()
 	spanPayload := map[string]any{
 		"id":           span.SpanID,
 		"execution_id": st.ExecutionID,
 		"span_type":    "TOOL_CALL",
 		"name":         in.ToolName,
-		"status":       "COMPLETED",
+		"status":       spanStatus,
 		"started_at":   span.StartedAt,
 		"ended_at":     endedAt,
 		// Span metadata values must be STRINGS: the server decodes metadata as
@@ -271,7 +330,13 @@ func HandlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 		"metadata": map[string]any{
 			"tool_input": jsonString(RedactInput(in.ToolInput, cfg.CaptureMode)),
 			"output":     jsonString(SummarizeOutput(in.ToolResponse, cfg.CaptureMode)),
+			// Lets the dashboard join this span to its audit tool event for
+			// per-tool durations.
+			"tool_use_id": in.ToolUseID,
 		},
+	}
+	if failed && in.Error != "" && cfg.CaptureMode != CaptureHash {
+		spanPayload["metadata"].(map[string]any)["error"] = truncate(in.Error, 500)
 	}
 	if st.TurnSpanID != "" {
 		spanPayload["parent_span_id"] = st.TurnSpanID
@@ -287,15 +352,22 @@ func HandlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 		ingestErr = ingestSpans(ctx, client, cfg, execID, batch)
 	}
 
+	auditMD := map[string]interface{}{
+		"session_id":  in.SessionID,
+		"tool_use_id": in.ToolUseID,
+		// Links lazily-started executions into the session rollup: the
+		// backend aggregation reads execution_id off event metadata.
+		"execution_id": st.ExecutionID,
+	}
+	if failed && in.Error != "" && cfg.CaptureMode != CaptureHash {
+		auditMD["error"] = truncate(in.Error, 500)
+	}
 	auditErr := auditLog(ctx, client, cfg, fact0.AuditEventInput{
 		Actor:    AgentActor(),
 		Action:   "claude_code.tool." + strings.ToLower(in.ToolName),
 		Resource: ResourceFromTool(in.ToolName, in.ToolInput, cfg.CaptureMode),
-		Outcome:  "success",
-		Metadata: map[string]interface{}{
-			"session_id":  in.SessionID,
-			"tool_use_id": in.ToolUseID,
-		},
+		Outcome:  outcome,
+		Metadata: auditMD,
 	})
 
 	if err := SaveState(cfg, st); err != nil {
@@ -349,6 +421,53 @@ func RecordPolicySpan(ctx context.Context, client *fact0.Client, cfg Config, in 
 
 	_ = ingestSpans(ctx, client, cfg, st.ExecutionID, []map[string]any{span})
 	return nil
+}
+
+// HandlePermission records a human permission decision (PermissionRequest /
+// PermissionDenied hooks, newer Claude Code builds) as an audit event plus a
+// point-in-time HUMAN_APPROVAL span — accountability for dangerous actions
+// lands on a person, not the agent.
+func HandlePermission(ctx context.Context, client *fact0.Client, cfg Config, in HookInput) error {
+	denied := strings.EqualFold(in.HookEventName, "PermissionDenied")
+	action, decision, outcome := "claude_code.permission.request", "requested", "success"
+	if denied {
+		action, decision, outcome = "claude_code.permission.denied", "denied", "failure"
+	}
+
+	st, _ := LoadState(cfg, in.SessionID)
+	if execID := ensureExecution(ctx, client, cfg, in, st); execID != "" {
+		now := nowRFC3339()
+		span := map[string]any{
+			"id":           newSpanID(),
+			"execution_id": execID,
+			"span_type":    "HUMAN_APPROVAL",
+			"name":         "permission:" + in.ToolName,
+			"status":       "COMPLETED",
+			"started_at":   now,
+			"ended_at":     now,
+			"metadata": map[string]any{
+				"tool":     in.ToolName,
+				"decision": decision,
+			},
+		}
+		if st.TurnSpanID != "" {
+			span["parent_span_id"] = st.TurnSpanID
+		}
+		_ = ingestSpans(ctx, client, cfg, execID, []map[string]any{span})
+	}
+
+	return auditLog(ctx, client, cfg, fact0.AuditEventInput{
+		Actor:    HumanActor(cfg),
+		Action:   action,
+		Resource: ResourceFromTool(in.ToolName, in.ToolInput, cfg.CaptureMode),
+		Outcome:  outcome,
+		Metadata: map[string]interface{}{
+			"session_id":   in.SessionID,
+			"tool_name":    in.ToolName,
+			"decision":     decision,
+			"execution_id": st.ExecutionID,
+		},
+	})
 }
 
 // HandleNotification records a Claude Code notification as a system audit event.
@@ -405,18 +524,24 @@ func HandleSubagentStop(ctx context.Context, client *fact0.Client, cfg Config, i
 	})
 }
 
-// HandleStop closes the active turn span: if state has an execution and a
-// pending "__turn__" span, it ingests it as a COMPLETED CUSTOM span, then clears
-// the turn from local state. Best-effort — errors propagate so main can log.
+// HandleStop closes the active turn span and enriches the turn from the
+// transcript: hook payloads never carry the assistant's response or token
+// usage, but the transcript JSONL does. Emits a claude_code.turn.complete
+// audit event (response text gated by capture mode) and a MODEL_INVOCATION
+// span so token rollups work. Transcript work is strictly best-effort.
 func HandleStop(ctx context.Context, client *fact0.Client, cfg Config, in HookInput) error {
 	st, err := LoadState(cfg, in.SessionID)
 	if err != nil {
 		return err
 	}
 
+	execID := ensureExecution(ctx, client, cfg, in, st)
+	turnSpanID := ""
+
 	var ingestErr error
 	if turn, ok := st.PendingSpans["__turn__"]; ok {
-		if execID := ensureExecution(ctx, client, cfg, in, st); execID != "" {
+		turnSpanID = turn.SpanID
+		if execID != "" {
 			span := map[string]any{
 				"id":           turn.SpanID,
 				"execution_id": execID,
@@ -436,7 +561,78 @@ func HandleStop(ctx context.Context, client *fact0.Client, cfg Config, in HookIn
 	if err := SaveState(cfg, st); err != nil {
 		return err
 	}
+
+	if stats, ok := ReadTurnFromTranscript(in.TranscriptPath); ok {
+		if err := emitTurnComplete(ctx, client, cfg, in, execID, turnSpanID, stats); err != nil {
+			logf("turn enrichment: %v", err)
+		}
+	}
 	return ingestErr
+}
+
+// turnResponsePreviewLen bounds the assistant-response text shipped in
+// metadata mode; raw mode ships the full text, hash mode only the digest.
+const turnResponsePreviewLen = 1500
+
+// emitTurnComplete records the assistant's side of a turn: an audit event
+// carrying the response (capture-mode gated) and a MODEL_INVOCATION span with
+// real token usage from the transcript.
+func emitTurnComplete(ctx context.Context, client *fact0.Client, cfg Config, in HookInput, execID, turnSpanID string, stats TurnStats) error {
+	md := map[string]interface{}{
+		"session_id":      in.SessionID,
+		"execution_id":    execID,
+		"model":           stats.Model,
+		"input_tokens":    stats.InputTokens,
+		"output_tokens":   stats.OutputTokens,
+		"response_len":    len(stats.ResponseText),
+		"response_sha256": Sha256Hex(stats.ResponseText),
+	}
+	switch cfg.CaptureMode {
+	case CaptureRawMode:
+		md["response"] = stats.ResponseText
+	case CaptureMetadata:
+		md["response"] = truncate(stats.ResponseText, turnResponsePreviewLen)
+	}
+
+	auditErr := auditLog(ctx, client, cfg, fact0.AuditEventInput{
+		Actor:    AgentActor(),
+		Action:   "claude_code.turn.complete",
+		Resource: fact0.Resource{ID: in.SessionID, Type: "claude_code.session"},
+		Outcome:  "success",
+		Metadata: md,
+	})
+
+	if execID != "" && (stats.InputTokens > 0 || stats.OutputTokens > 0) {
+		now := nowRFC3339()
+		model := stats.Model
+		if model == "" {
+			model = "claude"
+		}
+		span := map[string]any{
+			"id":           newSpanID(),
+			"execution_id": execID,
+			"span_type":    "MODEL_INVOCATION",
+			"name":         "model_invocation",
+			"status":       "COMPLETED",
+			"started_at":   now,
+			"ended_at":     now,
+			"metadata":     map[string]any{},
+			"model_invocation": map[string]any{
+				"model_name":        model,
+				"model_provider":    "anthropic",
+				"prompt_tokens":     stats.InputTokens,
+				"completion_tokens": stats.OutputTokens,
+				"total_tokens":      stats.InputTokens + stats.OutputTokens,
+			},
+		}
+		if turnSpanID != "" {
+			span["parent_span_id"] = turnSpanID
+		}
+		if err := ingestSpans(ctx, client, cfg, execID, []map[string]any{span}); err != nil {
+			return err
+		}
+	}
+	return auditErr
 }
 
 // HandleSessionEnd ends the execution trace, records session.end, and clears state.
@@ -448,15 +644,22 @@ func HandleSessionEnd(ctx context.Context, client *fact0.Client, cfg Config, in 
 		endErr = endExecution(ctx, client, cfg, st.ExecutionID, "COMPLETED")
 	}
 
+	endMD := map[string]interface{}{
+		"reason":       in.Reason,
+		"execution_id": st.ExecutionID,
+	}
+	// End-of-session HEAD: with the start commit, this brackets what the
+	// session produced ("abc123 -> def456").
+	if gi := ReadGitInfo(ctx, in.Cwd); gi.Commit != "" {
+		endMD["git_commit_end"] = gi.Commit
+		endMD["git_branch"] = gi.Branch
+	}
 	auditErr := auditLog(ctx, client, cfg, fact0.AuditEventInput{
 		Actor:    HumanActor(cfg),
 		Action:   "claude_code.session.end",
 		Resource: fact0.Resource{ID: in.SessionID, Type: "claude_code.session"},
 		Outcome:  "success",
-		Metadata: map[string]interface{}{
-			"reason":       in.Reason,
-			"execution_id": st.ExecutionID,
-		},
+		Metadata: endMD,
 	})
 
 	clearErr := ClearState(cfg, in.SessionID)

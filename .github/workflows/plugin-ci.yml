@@ -1,0 +1,32 @@
+name: claude-code-plugin CI
+
+on:
+  pull_request:
+    paths:
+      - "claude-code-plugin/**"
+      - "sdk/go/**"
+  push:
+    branches: [main]
+    paths:
+      - "claude-code-plugin/**"
+      - "sdk/go/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: claude-code-plugin/collector
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: claude-code-plugin/collector/go.sum
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Cross-compile all release targets
+        run: |
+          for target in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
+            GOOS=${target%/*} GOARCH=${target#*/} go build -o /dev/null .
+          done

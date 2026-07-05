@@ -93,6 +93,9 @@ func run() int {
 	switch event {
 	case "session-start":
 		handlerErr = HandleSessionStart(ctx, client, cfg, in)
+		// Force-refresh the server-managed policy at the session boundary
+		// (after telemetry so the 8s budget isn't starved).
+		RefreshRemotePolicy(ctx, client, cfg, 0)
 	case "prompt":
 		handlerErr = HandleUserPrompt(ctx, client, cfg, in)
 	case "pre-tool":
@@ -106,12 +109,18 @@ func run() int {
 		handlerErr = HandlePreTool(ctx, client, cfg, in)
 	case "post-tool":
 		handlerErr = HandlePostTool(ctx, client, cfg, in)
+	case "post-tool-failure":
+		handlerErr = HandlePostToolFailure(ctx, client, cfg, in)
+	case "permission":
+		handlerErr = HandlePermission(ctx, client, cfg, in)
 	case "notify":
 		handlerErr = HandleNotification(ctx, client, cfg, in)
 	case "subagent-stop":
 		handlerErr = HandleSubagentStop(ctx, client, cfg, in)
 	case "stop":
 		handlerErr = HandleStop(ctx, client, cfg, in)
+		// Opportunistic policy refresh at turn boundaries when stale.
+		RefreshRemotePolicy(ctx, client, cfg, 5*time.Minute)
 	case "session-end":
 		handlerErr = HandleSessionEnd(ctx, client, cfg, in)
 	default:
@@ -237,6 +246,11 @@ func printStatus(cfg Config) {
 	pol, active := LoadPolicy(cfg)
 	fmt.Printf("  policy_file: %s\n", policyFile)
 	fmt.Printf("  enforce:     %s\n", onOff(isTruthy(os.Getenv("FACT0_CC_ENFORCE"))))
+	fmt.Printf("  remote_policy: %s\n", onOff(cfg.RemotePolicy))
+	if cache, ok := LoadPolicyCache(cfg); ok {
+		fmt.Printf("  policy_cache:  v%d · %d rule(s) · fetched %s\n",
+			cache.Version, len(cache.Rules), cache.FetchedAt.Format(time.RFC3339))
+	}
 	fmt.Printf("  governance:  %s (%d rule(s))\n", onOff(active), len(pol.Rules))
 
 	fmt.Println("  active sessions:")

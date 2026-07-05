@@ -127,13 +127,19 @@ Inside Claude Code — the marketplace manifest lives at the repo root of
 /plugin install fact0-claude-code@fact0
 ```
 
+No build step: `bin/fact0-cc` is a bootstrap script that downloads the
+checksum-verified collector binary for your OS/arch from GitHub Releases on
+first run (cached in `~/.fact0/cc/bin/`, pinned by the `VERSION` file).
+Overrides: `FACT0_CC_BIN` points at any binary; `FACT0_CC_RELEASE_BASE`
+redirects downloads to an enterprise mirror.
+
 ### From a local checkout
 
 #### 1. Build the collector binary
 
 ```bash
 bash scripts/build.sh
-# -> <repo>/claude-code-plugin/bin/fact0-cc
+# -> <repo>/claude-code-plugin/bin/fact0-cc-dev  (the bootstrap prefers it)
 ```
 
 This runs, from `collector/`:
