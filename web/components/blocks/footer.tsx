@@ -1,12 +1,14 @@
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
+import { docsHref } from "@/lib/docs-origin";
+
 export function Footer() {
-  return (
-    <footer className="mx-auto max-w-6xl px-6 py-10 border-t flex flex-wrap justify-between gap-4 text-xs text-muted-foreground">
-      <span>Fact0 · Experimental self-hosted software</span>
-      <div className="flex gap-5">
-        <Link href="/legal">License & privacy</Link>
-        <a href="https://github.com/fact0-ai/fact0/issues">Issues</a>
-      </div>
-    </footer>
-  );
+  return <footer className="retro-footer">
+    <div className="retro-container">
+      <div className="retro-footer-cta"><div><p className="retro-eyebrow">[ YOUR NEXT RUN, WITH A RECORD ]</p><h2>Keep the history.<br /><span className="retro-highlight retro-highlight-yellow">Own the instance.</span></h2></div><a className="retro-button retro-button-coral" href="https://github.com/fact0-ai/fact0#quickstart">Run Fact0 locally <ArrowUpRight size={20} /></a></div>
+      <nav className="retro-footer-links" aria-label="Footer navigation"><a href={docsHref()}>Documentation</a><a href="https://github.com/fact0-ai/fact0">GitHub <ArrowUpRight size={13} /></a><a href="https://github.com/fact0-ai/fact0/issues">Issues <ArrowUpRight size={13} /></a><Link href="/legal">License & privacy</Link></nav>
+      <div className="retro-footer-meta"><span>© {new Date().getFullYear()} FACT0 / MIT LICENSED</span><span>EXPERIMENTAL. BEST-EFFORT MAINTENANCE.</span></div>
+      <div className="retro-footer-wordmark" aria-hidden="true">fact0</div>
+    </div>
+  </footer>;
 }
