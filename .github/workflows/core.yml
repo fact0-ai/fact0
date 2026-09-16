@@ -58,6 +58,9 @@ jobs:
       - run: npm test
       - run: npx tsc --noEmit
       - run: npm run build
+      - name: Build and verify the static public website
+        working-directory: .
+        run: python3 scripts/build-marketing.py
 
   sdk-and-docs:
     runs-on: ubuntu-latest

@@ -4,6 +4,22 @@ import { Home, LayoutDashboard, Search } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
 export default function NotFound() {
+  if (process.env.NEXT_PUBLIC_MARKETING_ONLY === "1") {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-start justify-center gap-6 px-6 py-20">
+        <BrandLogo />
+        <p className="text-sm text-muted-foreground">404</p>
+        <h1 className="text-4xl font-semibold tracking-tight">Page not found</h1>
+        <p className="text-muted-foreground">
+          This page is unavailable. Return to Fact0 to find the current guides
+          and installation instructions.
+        </p>
+        <Link className="rounded-lg border px-5 py-3 text-sm" href="/">
+          Back to Fact0
+        </Link>
+      </main>
+    );
+  }
   return (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center relative overflow-hidden">
       {/* Background gradient */}

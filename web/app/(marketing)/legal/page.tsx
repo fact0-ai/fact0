@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "License and data handling",
+  alternates: { canonical: "/legal" },
+};
+
 export default function LegalPage() {
   return (
     <article className="mx-auto max-w-3xl px-6 py-20 space-y-6">
@@ -10,9 +17,9 @@ export default function LegalPage() {
       <h2 className="text-xl font-semibold">Your installation, your data</h2>
       <p>
         This edition does not send application telemetry to Fact0 or load
-        third-party analytics. It stores owner authentication cookies for
-        sign-in. Your PostgreSQL instance stores captured events and execution
-        payloads.
+        third-party analytics. The self-hosted application stores owner
+        authentication cookies for sign-in. Your PostgreSQL instance stores
+        captured events and execution payloads.
       </p>
       <p>
         Python and Claude Code raw capture can include source code, prompts,
@@ -24,7 +31,7 @@ export default function LegalPage() {
       <p>
         Your agents and Claude Code may call their own model providers or other
         services. Fact0 does not control those services. Documentation and
-        GitHub links leave this installation.
+        GitHub links open external websites.
       </p>
       <a
         className="underline"

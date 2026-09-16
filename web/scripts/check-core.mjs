@@ -7,9 +7,11 @@ const require = createRequire(import.meta.url);
 function load(path, mocks = {}, globals = {}) {
   const source = readFileSync(new URL("../" + path, import.meta.url), "utf8");
   const code = ts.transpileModule(source, {
+    fileName: path,
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
     },
   }).outputText;
   const exports = {};
@@ -65,6 +67,30 @@ assert.equal(
   "https://docs.example.invalid/integrations/claude-code#capture-modes",
 );
 console.log("Documentation links passed: GitHub first-use fallback, checked-in guides, anchors and explicit published-docs override.");
+
+const { createElement } = require("react");
+const { renderToStaticMarkup } = require("react-dom/server");
+for (const marketingOnly of [false, true]) {
+  const { Navbar } = load("components/blocks/navbar.tsx", {
+    "next/link": { default: ({ children, ...props }) => createElement("a", props, children) },
+    "@/components/brand/brand-logo": { BrandLogo: () => null },
+    "@/lib/docs-origin": sourceDocs,
+  }, { process: { env: { NEXT_PUBLIC_MARKETING_ONLY: marketingOnly ? "1" : "" } } });
+  const html = renderToStaticMarkup(createElement(Navbar));
+  assert.equal(html.includes('href="/dashboard"'), !marketingOnly);
+  assert.equal(html.includes("Open dashboard"), !marketingOnly);
+  assert.equal(html.includes("Run locally"), marketingOnly);
+
+  const { default: NotFound } = load("app/not-found.tsx", {
+    "next/link": { default: ({ children, ...props }) => createElement("a", props, children) },
+    "@/components/brand/brand-logo": { BrandLogo: () => null },
+  }, { process: { env: { NEXT_PUBLIC_MARKETING_ONLY: marketingOnly ? "1" : "" } } });
+  const notFound = renderToStaticMarkup(createElement(NotFound));
+  assert.equal(notFound.includes('href="/dashboard"'), !marketingOnly);
+  assert.equal(notFound.includes('href="/dashboard/executions"'), !marketingOnly);
+  assert.equal(notFound.includes("Back to Fact0"), marketingOnly);
+}
+console.log("Public navigation passed: marketing links to setup; self-hosted navbar and 404 retain dashboard links.");
 
 const { sanitiseRedirectPath } = load("lib/app-origin.ts");
 for (const path of [
