@@ -2,6 +2,8 @@
 
 The public landing and legal pages can be exported as static files. They use the same components, styles, local fonts and assets as the self-hosted application. The public build sends visitors to the repository quickstart and guides.
 
+The marketing layout scopes its paper-grid, ink-border theme and bundled Bricolage Grotesque / JetBrains Mono fonts to these pages. The dashboard keeps its application theme. The interactive execution panel shows synthetic Python and Claude Code examples, with manual example selection and a pause control; it is an illustration of recorded activity, not a live connection to a hosted backend.
+
 Use Python 3 and Node 22 or newer. Install the locked web dependencies once, then run from the repository root:
 
 ```sh

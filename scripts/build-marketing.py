@@ -21,17 +21,23 @@ SOURCE_FILES = (
     "package.json", "package-lock.json", "tsconfig.json", "postcss.config.mjs", "content.json",
     "app/layout.tsx", "app/globals.css", "app/favicon.ico", "app/not-found.tsx",
     "app/robots.ts", "app/sitemap.ts",
-    "app/(marketing)/layout.tsx", "app/(marketing)/page.tsx",
+    "app/(marketing)/layout.tsx", "app/(marketing)/page.tsx", "app/(marketing)/marketing.css",
     "app/(marketing)/legal/page.tsx", "app/(marketing)/legal/cookies/page.tsx",
     "app/(marketing)/legal/privacy/page.tsx", "app/(marketing)/legal/refund/page.tsx",
     "app/(marketing)/legal/terms/page.tsx",
     "components/blocks/navbar.tsx", "components/blocks/footer.tsx",
+    "components/blocks/marketing-content.ts", "components/blocks/hero.tsx",
+    "components/blocks/code-panel.tsx", "components/blocks/how-it-works.tsx",
+    "components/blocks/features.tsx", "components/blocks/faq.tsx",
+    "components/blocks/agent-flow-viz.tsx",
     "components/brand/brand-logo.tsx", "components/theme-provider.tsx",
     "lib/app-origin.ts", "lib/brand-assets.ts", "lib/docs-origin.ts", "lib/utils.ts",
     "fonts/dm-sans/DMSans-Regular.ttf", "fonts/dm-sans/DMSans-Italic.ttf",
     "fonts/dm-sans/DMSans-Medium.ttf", "fonts/dm-sans/DMSans-MediumItalic.ttf",
     "fonts/dm-sans/DMSans-SemiBold.ttf", "fonts/dm-sans/DMSans-SemiBoldItalic.ttf",
     "fonts/dm-sans/DMSans-Bold.ttf", "fonts/dm-sans/DMSans-BoldItalic.ttf", "fonts/dm-sans/OFL.txt",
+    "fonts/bricolage-grotesque/BricolageGrotesque-Variable.woff2", "fonts/bricolage-grotesque/OFL.txt",
+    "fonts/jetbrains-mono/JetBrainsMono-Variable.woff2", "fonts/jetbrains-mono/OFL.txt",
     "public/logo.svg", "public/og-image.svg", "public/llms.txt", "public/llms-full.txt",
     "public/favicon/favicon.ico", "public/favicon/favicon.svg",
     "public/favicon/favicon-16x16.png", "public/favicon/favicon-32x32.png",
@@ -93,6 +99,8 @@ def stage_sources(destination):
     licenses = destination / "public/licenses"
     licenses.mkdir()
     shutil.copyfile(WEB / "fonts/dm-sans/OFL.txt", licenses / "DM-Sans-OFL.txt")
+    shutil.copyfile(WEB / "fonts/bricolage-grotesque/OFL.txt", licenses / "Bricolage-Grotesque-OFL.txt")
+    shutil.copyfile(WEB / "fonts/jetbrains-mono/OFL.txt", licenses / "JetBrains-Mono-OFL.txt")
     shutil.copyfile(ROOT / "LICENSE", licenses / "Fact0-MIT.txt")
     (licenses / "browser-dependencies.txt").write_text(browser_dependency_notices())
     # Reuse installed, locked build dependencies without copying or installing them.
@@ -118,7 +126,8 @@ class LocalLinks(HTMLParser):
 def check_export(output, origin):
     for name in (*PAGES, "robots.txt", "sitemap.xml", "logo.svg", "og-image.svg",
                  "favicon/site.webmanifest", "llms.txt", "llms-full.txt",
-                 "licenses/DM-Sans-OFL.txt", "licenses/Fact0-MIT.txt", "licenses/browser-dependencies.txt"):
+                 "licenses/DM-Sans-OFL.txt", "licenses/Bricolage-Grotesque-OFL.txt",
+                 "licenses/JetBrains-Mono-OFL.txt", "licenses/Fact0-MIT.txt", "licenses/browser-dependencies.txt"):
         if not (output / name).is_file():
             raise ValueError(f"missing public artifact: {name}")
     forbidden_routes = ("api", "v1", "dashboard", "executions", "sign-in")

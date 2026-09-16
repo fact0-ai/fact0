@@ -22,6 +22,8 @@ COPY --from=production-deps --chown=nextjs:nodejs /app/node_modules ./node_modul
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/owner.mjs ./scripts/owner.mjs
 COPY --from=builder /app/LICENSE /usr/share/licenses/fact0/LICENSE
 COPY --from=builder /app/fonts/dm-sans/OFL.txt /usr/share/licenses/fact0/DM-Sans-OFL.txt
+COPY --from=builder /app/fonts/bricolage-grotesque/OFL.txt /usr/share/licenses/fact0/Bricolage-Grotesque-OFL.txt
+COPY --from=builder /app/fonts/jetbrains-mono/OFL.txt /usr/share/licenses/fact0/JetBrains-Mono-OFL.txt
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]

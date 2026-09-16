@@ -1,0 +1,293 @@
+.retro-marketing {
+  --retro-paper: #fffdf9;
+  --retro-ink: #101010;
+  --retro-lime: #c6ff3d;
+  --retro-coral: #ff5c3d;
+  --retro-yellow: #ffdc70;
+  --retro-muted: #58564f;
+  min-height: 100vh;
+  color: var(--retro-ink);
+  background-color: var(--retro-paper);
+  background-image: linear-gradient(#10101009 1px, transparent 1px), linear-gradient(90deg, #10101009 1px, transparent 1px);
+  background-size: 28px 28px;
+  font-family: var(--font-retro-mono), monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+.retro-marketing *, .retro-marketing *::before, .retro-marketing *::after { box-sizing: border-box; }
+.retro-marketing h1, .retro-marketing h2, .retro-marketing h3 { font-family: var(--font-retro-heading), sans-serif; font-weight: 800; color: var(--retro-ink); font-optical-sizing: auto; }
+.retro-marketing button, .retro-marketing input, .retro-marketing code, .retro-marketing pre { font-family: var(--font-retro-mono), monospace; }
+.retro-marketing a { color: inherit; }
+.retro-marketing .retro-skip { position: absolute; z-index: 100; top: -100px; left: 16px; padding: 10px 16px; border: 2px solid var(--retro-ink); background: var(--retro-lime); font-size: 12px; font-weight: 700; }
+.retro-marketing .retro-skip:focus { top: 12px; }
+.retro-marketing a:focus-visible, .retro-marketing button:focus-visible, .retro-marketing summary:focus-visible, .retro-marketing pre:focus-visible { outline: 3px solid var(--retro-coral); outline-offset: 5px; }
+.retro-marketing ::selection { background: var(--retro-lime); color: var(--retro-ink); }
+.retro-marketing section[id] { scroll-margin-top: 24px; }
+.retro-marketing .retro-container { width: min(1180px, calc(100% - 64px)); margin-inline: auto; }
+.retro-marketing .retro-banner { display: flex; align-items: center; justify-content: center; gap: 36px; padding: 7px 24px; border-bottom: 2px solid var(--retro-ink); background: var(--retro-lime); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.retro-marketing .retro-banner a { display: inline-flex; align-items: center; gap: 5px; text-decoration: underline; text-underline-offset: 3px; }
+.retro-marketing .retro-header { border-bottom: 2px solid var(--retro-ink); background: var(--retro-paper); }
+.retro-marketing .retro-header-row { min-height: 95px; display: flex; align-items: center; gap: 28px; }
+.retro-marketing .retro-brand { display: flex; align-items: center; justify-content: center; padding: 9px 17px; border: 2px solid var(--retro-ink); background: var(--retro-lime); box-shadow: 3px 3px 0 var(--retro-ink); transform: rotate(-2deg); flex-shrink: 0; }
+.retro-marketing .retro-brand img { filter: none !important; height: 28px !important; max-width: 94px; }
+.retro-marketing .retro-nav-desktop { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+.retro-marketing .retro-nav-desktop a { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.retro-marketing .retro-nav-desktop a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.retro-marketing .retro-button { display: inline-flex; align-items: center; justify-content: center; gap: 14px; border: 2px solid var(--retro-ink); border-radius: 0; padding: 13px 20px; background: var(--retro-lime); box-shadow: 4px 4px 0 var(--retro-ink); font-size: 13px; font-weight: 700; line-height: 1.35; text-decoration: none; transition: transform 120ms, box-shadow 120ms; }
+.retro-marketing .retro-button:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--retro-ink); }
+.retro-marketing .retro-button-paper { background: var(--retro-paper); }
+.retro-marketing .retro-button-coral { background: var(--retro-coral); }
+.retro-marketing .retro-nav-cta { padding: 10px 13px; font-size: 11px; white-space: nowrap; }
+.retro-marketing .retro-menu-toggle { display: none; align-items: center; justify-content: center; width: 39px; height: 39px; padding: 0; border: 2px solid var(--retro-ink); background: var(--retro-paper); }
+.retro-marketing .retro-nav-mobile { display: none; }
+.retro-marketing .retro-hero { padding: 76px 0 72px; }
+.retro-marketing .retro-hero-grid { display: grid; grid-template-columns: 1.5fr 1fr; align-items: center; gap: 70px; margin-bottom: 64px; }
+.retro-marketing .retro-eyebrow { margin: 0 0 23px; font-size: 11px; font-weight: 700; letter-spacing: .025em; }
+.retro-marketing .retro-hero h1 { margin: 0; max-width: 700px; font-size: clamp(44px, 5.1vw, 65px); line-height: 1.08; letter-spacing: -.045em; }
+.retro-marketing .retro-highlight { display: inline-block; padding: 0 6px 4px; background: var(--retro-lime); border: 2px solid var(--retro-ink); line-height: 1.03; transform: rotate(-2deg); box-shadow: 3px 3px 0 var(--retro-ink); margin-top: 8px; }
+.retro-marketing .retro-highlight-yellow { background: var(--retro-yellow); }
+.retro-marketing .retro-lead { max-width: 580px; margin: 26px 0 0; font-size: 14px; line-height: 1.9; color: #34332f; }
+.retro-marketing .retro-actions { display: flex; flex-wrap: wrap; gap: 19px; margin-top: 29px; }
+.retro-marketing .retro-smallprint { margin: 21px 0 0; font-size: 10px; color: var(--retro-muted); }
+.retro-marketing .retro-hero-index { border: 2px solid var(--retro-ink); background: var(--retro-paper); box-shadow: 6px 6px 0 var(--retro-ink); }
+.retro-marketing .retro-index-title { display: flex; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--retro-ink); background: var(--retro-yellow); padding: 10px 16px; font-size: 10px; font-weight: 700; }
+.retro-marketing .retro-index-item { display: flex; align-items: flex-start; gap: 15px; margin: 0 18px; padding: 19px 0; border-bottom: 1px dashed #10101066; }
+.retro-marketing .retro-index-item > svg { flex-shrink: 0; margin-top: 3px; }
+.retro-marketing .retro-index-item h2 { font-size: 20px; line-height: 1.1; letter-spacing: -.025em; margin: 0 0 8px; }
+.retro-marketing .retro-index-item p { font-size: 11px; line-height: 1.75; margin: 0; color: var(--retro-muted); }
+.retro-marketing .retro-index-link { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; font-size: 10px; font-weight: 700; }
+.retro-marketing .retro-index-link:hover { background: var(--retro-lime); }
+.retro-marketing .retro-caption { margin: 13px 0 0; font-size: 10px; line-height: 1.75; color: var(--retro-muted); }
+.retro-marketing .retro-center { text-align: center; }
+.retro-marketing .retro-debugger { border: 2px solid var(--retro-ink); background: var(--retro-paper); box-shadow: 6px 6px 0 var(--retro-ink); }
+.retro-marketing .retro-debugger-title { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--retro-ink); color: var(--retro-paper); padding: 13px 18px; font-size: 11px; font-weight: 700; }
+.retro-marketing .retro-debugger-title > span:first-child { display: inline-flex; align-items: center; gap: 9px; }
+.retro-marketing .retro-debugger-stamp { background: var(--retro-yellow); color: var(--retro-ink); font-size: 9px; padding: 2px 6px; transform: rotate(1deg); }
+.retro-marketing .retro-debugger-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 12px 18px; border-bottom: 2px solid var(--retro-ink); }
+.retro-marketing .retro-debugger-tabs { display: flex; gap: 8px; }
+.retro-marketing .retro-debugger-tabs button { padding: 5px 14px; border: 1px solid var(--retro-ink); background: transparent; font-size: 11px; font-weight: 700; }
+.retro-marketing .retro-debugger-tabs button[aria-pressed=true] { background: var(--retro-lime); box-shadow: 2px 2px 0 var(--retro-ink); }
+.retro-marketing .retro-debugger-play { display: flex; align-items: center; gap: 7px; border: 0; background: none; font-size: 9px; font-weight: 700; }
+.retro-marketing .retro-debugger-play:disabled { opacity: .55; cursor: default; }
+.retro-marketing .retro-debugger-grid { display: grid; grid-template-columns: 1fr .85fr 1.5fr 1fr; }
+.retro-marketing .retro-debugger-cell { min-width: 0; padding: 22px 20px 20px; border-right: 1px solid var(--retro-ink); }
+.retro-marketing .retro-debugger-cell:last-child { border-right: 0; }
+.retro-marketing .retro-debugger-label { margin: 0 0 23px; font-size: 10px; letter-spacing: .03em; font-weight: 700; }
+.retro-marketing .retro-source-list { display: grid; gap: 11px; }
+.retro-marketing .retro-source-list > div { display: flex; align-items: center; gap: 10px; font-size: 10px; min-width: 0; }
+.retro-marketing .retro-source-list svg { box-sizing: content-box; padding: 7px; border: 1px solid var(--retro-ink); background: #f1eee7; flex-shrink: 0; }
+.retro-marketing .retro-source-list [data-active=true] svg { background: var(--retro-lime); box-shadow: 2px 2px 0 var(--retro-ink); }
+.retro-marketing .retro-debugger-note { margin: 22px 0 0; font-size: 9px; color: var(--retro-muted); line-height: 1.8; }
+.retro-marketing .retro-debugger-capture { display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+.retro-marketing .retro-debugger-capture > .retro-debugger-label { align-self: flex-start; }
+.retro-marketing .retro-capture-symbol { display: grid; place-items: center; width: 77px; height: 77px; margin: 7px 0 12px; border: 2px solid var(--retro-ink); background: var(--retro-paper); box-shadow: 4px 4px 0 var(--retro-ink); transform: rotate(-7deg); }
+.retro-marketing .retro-capture-symbol[data-active=true] { background: var(--retro-lime); }
+.retro-marketing .retro-capture-symbol span { font-family: var(--font-retro-heading); font-size: 40px; font-weight: 800; letter-spacing: -.08em; transform: rotate(7deg); }
+.retro-marketing .retro-capture-arrow { height: 31px; }
+.retro-marketing .retro-debugger-capture .retro-debugger-note { text-align: center; margin-top: 4px; }
+.retro-marketing .retro-debugger-kind { margin: -14px 0 14px; font-size: 8px; color: var(--retro-muted); }
+.retro-marketing .retro-span-list { display: flex; flex-direction: column; min-height: 180px; }
+.retro-marketing .retro-span-step > div { display: flex; align-items: center; gap: 8px; min-height: 35px; padding: 6px 9px; border: 1px solid var(--retro-ink); background: var(--retro-paper); }
+.retro-marketing .retro-span-step [data-state=recorded] { background: #e5fbc0; }
+.retro-marketing .retro-span-step code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.retro-marketing .retro-span-step small { margin-left: auto; font-size: 8px; color: var(--retro-muted); }
+.retro-marketing .retro-span-step > div > span { display: flex; width: 13px; flex-shrink: 0; }
+.retro-marketing .retro-span-arrow { margin-left: 19px; }
+.retro-marketing .retro-record-count { display: flex; flex-direction: column; gap: 0; }
+.retro-marketing .retro-record-count strong { font-family: var(--font-retro-heading); font-size: 57px; line-height: 1; letter-spacing: -.04em; }
+.retro-marketing .retro-record-count span, .retro-marketing .retro-record-result > span { font-size: 8px; font-weight: 700; }
+.retro-marketing .retro-record-result { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; margin: 20px 0; border-block: 1px dashed #10101066; }
+.retro-marketing .retro-record-result strong { background: var(--retro-yellow); padding: 1px 6px; font-size: 12px; }
+.retro-marketing .retro-debugger-record > a { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 9px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.retro-marketing .retro-debugger-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 18px; border-top: 2px solid var(--retro-ink); font-size: 8px; font-weight: 700; background: #f3f0e8; }
+.retro-marketing .retro-section { padding: 42px 0 54px; }
+.retro-marketing .retro-section-label { display: flex; justify-content: space-between; gap: 18px; border-top: 3px solid var(--retro-ink); padding-top: 11px; margin-bottom: 40px; font-size: 10px; font-weight: 700; letter-spacing: .025em; }
+.retro-marketing .retro-section-label span:last-child { font-weight: 400; color: var(--retro-muted); text-align: right; }
+.retro-marketing .retro-section-title { font-size: clamp(34px, 4vw, 48px); line-height: 1.08; letter-spacing: -.035em; margin: 0; }
+.retro-marketing .retro-body { margin: 22px 0; font-size: 12px; line-height: 1.9; color: #424039; max-width: 520px; }
+.retro-marketing .retro-setup-grid, .retro-marketing .retro-integration { display: grid; grid-template-columns: 1fr 1.1fr; align-items: start; gap: 70px; }
+.retro-marketing .retro-checklist { list-style: none; padding: 0; margin: 22px 0 28px; display: grid; gap: 7px; font-size: 11px; }
+.retro-marketing .retro-checklist li::before { content: "[✓]"; margin-right: 12px; font-weight: 700; }
+.retro-marketing .retro-text-link { display: inline-flex; align-items: center; gap: 10px; font-size: 10px; font-weight: 700; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+.retro-marketing .retro-text-link:hover { background: var(--retro-lime); }
+.retro-marketing .retro-command-wrap { min-width: 0; }
+.retro-marketing .retro-command { border: 2px solid var(--retro-ink); background: #191a17; color: #fffdf9; box-shadow: 5px 5px 0 var(--retro-ink); }
+.retro-marketing .retro-command-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--retro-yellow); color: var(--retro-ink); border-bottom: 2px solid var(--retro-ink); padding: 10px 14px; font-size: 10px; font-weight: 700; }
+.retro-marketing .retro-command-header button { display: flex; align-items: center; gap: 6px; background: none; border: 0; font-size: 9px; }
+.retro-marketing .retro-command-header button:hover { text-decoration: underline; }
+.retro-marketing .retro-command pre { margin: 0; padding: 22px 19px; overflow-x: auto; font-size: 11px; line-height: 2; white-space: pre; color: #f4f0e6; }
+.retro-marketing .retro-underline { text-decoration: underline; text-decoration-color: var(--retro-coral); text-decoration-thickness: 6px; text-underline-offset: 5px; }
+.retro-marketing .retro-integrations { margin-top: 42px; }
+.retro-marketing .retro-integration { padding: 37px 0; border-top: 1px dashed #10101070; }
+.retro-marketing .retro-integration:last-child { border-bottom: 1px dashed #10101070; }
+.retro-marketing .retro-integration h3 { margin: 16px 0 0; font-size: 30px; line-height: 1.15; letter-spacing: -.02em; }
+.retro-marketing .retro-tag { display: inline-flex; align-items: center; gap: 8px; background: var(--retro-lime); border: 1px solid var(--retro-ink); padding: 3px 9px; margin: 0; font-size: 11px; font-weight: 700; }
+.retro-marketing .retro-integration:nth-child(2) .retro-tag { background: var(--retro-coral); }
+.retro-marketing .retro-section-intro { display: grid; grid-template-columns: 1.2fr 1fr; gap: 75px; align-items: end; margin-bottom: 36px; }
+.retro-marketing .retro-section-intro .retro-body { margin: 0; }
+.retro-marketing .retro-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 21px; }
+.retro-marketing .retro-feature { min-width: 0; border: 2px solid var(--retro-ink); box-shadow: 4px 4px 0 var(--retro-ink); background: var(--retro-paper); }
+.retro-marketing .retro-feature-visual { position: relative; height: 238px; border-bottom: 2px solid var(--retro-ink); background-color: #f4f1e8; background-image: radial-gradient(#10101025 .7px, transparent .7px); background-size: 12px 12px; padding: 43px 20px 18px; }
+.retro-marketing .retro-visual-label { position: absolute; left: 11px; top: 10px; font-size: 8px; font-weight: 700; background: var(--retro-paper); border: 1px solid var(--retro-ink); padding: 1px 5px; }
+.retro-marketing .retro-feature-copy { padding: 23px 22px; }
+.retro-marketing .retro-feature-copy h3 { font-size: 26px; line-height: 1.1; letter-spacing: -.03em; margin: 0; }
+.retro-marketing .retro-feature-copy p { margin: 15px 0 21px; font-size: 11px; color: var(--retro-muted); line-height: 1.85; min-height: 81px; }
+.retro-marketing .retro-mini-graph { display: flex; flex-direction: column; align-items: center; font-size: 8px; height: 100%; justify-content: center; }
+.retro-marketing .retro-graph-node { background: var(--retro-lime); border: 1px solid var(--retro-ink); padding: 7px 11px; box-shadow: 2px 2px 0 var(--retro-ink); }
+.retro-marketing .retro-node-coral { background: var(--retro-coral); }
+.retro-marketing .retro-graph-stem { display: block; height: 19px; border-left: 1px dashed var(--retro-ink); }
+.retro-marketing .retro-graph-branches { display: flex; gap: 14px; }
+.retro-marketing .retro-mini-payload { border: 1px solid var(--retro-ink); box-shadow: 3px 3px 0 var(--retro-ink); background: var(--retro-paper); max-width: 255px; margin: auto; }
+.retro-marketing .retro-mini-payload > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 7px; padding: 6px 9px; background: var(--retro-yellow); }
+.retro-marketing .retro-mini-payload pre { margin: 0; border-block: 1px solid var(--retro-ink); padding: 9px 11px; font-size: 9px; line-height: 1.7; }
+.retro-marketing .retro-mini-payload strong { background: var(--retro-coral); padding-inline: 4px; font-size: 7px; }
+.retro-marketing .retro-mini-timeline { max-width: 270px; margin: 11px auto 0; font-size: 8px; }
+.retro-marketing .retro-timeline-axis { display: flex; justify-content: space-between; margin: 0 0 14px 64px; border-bottom: 1px solid var(--retro-ink); }
+.retro-marketing .retro-timeline-row { display: flex; align-items: center; gap: 6px; height: 27px; }
+.retro-marketing .retro-timeline-row span { width: 55px; flex-shrink: 0; }
+.retro-marketing .retro-timeline-row i { display: block; flex-shrink: 1; height: 13px; border: 1px solid var(--retro-ink); background: var(--retro-lime); }
+.retro-marketing .retro-timeline-row:nth-child(3) i { background: var(--retro-coral); }
+.retro-marketing .retro-timeline-row:nth-child(4) i { background: var(--retro-yellow); }
+.retro-marketing .retro-timeline-controls { display: flex; align-items: center; gap: 11px; border-top: 1px solid var(--retro-ink); margin-top: 15px; padding-top: 10px; }
+.retro-marketing .retro-timeline-controls div { height: 8px; background: var(--retro-ink); flex: 1; }
+.retro-marketing .retro-table-wrap { border: 2px solid var(--retro-ink); box-shadow: 5px 5px 0 var(--retro-ink); background: var(--retro-paper); }
+.retro-marketing .retro-table { width: 100%; border-collapse: collapse; text-align: left; }
+.retro-marketing .retro-table thead { background: var(--retro-lime); }
+.retro-marketing .retro-table th, .retro-marketing .retro-table td { padding: 18px 22px; border-bottom: 1px solid var(--retro-ink); vertical-align: top; font-size: 11px; line-height: 1.85; }
+.retro-marketing .retro-table th:first-child { width: 27%; border-right: 1px solid var(--retro-ink); }
+.retro-marketing .retro-table thead th { font-size: 10px; }
+.retro-marketing .retro-table tbody tr:last-child th, .retro-marketing .retro-table tbody tr:last-child td { border-bottom: 0; }
+.retro-marketing .retro-table-note { background: #fff0dc; }
+.retro-marketing .retro-table-note th { text-decoration: underline; text-decoration-color: var(--retro-coral); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+.retro-marketing .retro-table-link { margin-top: 25px; }
+.retro-marketing .retro-faq-grid { display: grid; grid-template-columns: .95fr 1.2fr; gap: 70px; }
+.retro-marketing .retro-faq-groups { display: grid; gap: 22px; }
+.retro-marketing .retro-faq-group { background: var(--retro-paper); border: 2px solid var(--retro-ink); box-shadow: 4px 4px 0 var(--retro-ink); }
+.retro-marketing .retro-faq-group h3 { background: var(--retro-yellow); border-bottom: 1px solid var(--retro-ink); font-family: var(--font-retro-mono), monospace; font-size: 11px; padding: 10px 18px; margin: 0; }
+.retro-marketing .retro-faq-group details + details { border-top: 1px solid var(--retro-ink); }
+.retro-marketing .retro-faq-group summary { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px; font-size: 11px; font-weight: 600; cursor: pointer; list-style: none; }
+.retro-marketing .retro-faq-group summary::-webkit-details-marker { display: none; }
+.retro-marketing .retro-faq-group summary svg { flex-shrink: 0; }
+.retro-marketing .retro-faq-group details[open] summary svg { transform: rotate(45deg); }
+.retro-marketing .retro-faq-group details[open] summary { background: #effbcf; }
+.retro-marketing .retro-faq-group details p { margin: 0; padding: 0 18px 20px; font-size: 11px; line-height: 1.9; color: var(--retro-muted); }
+.retro-marketing .retro-faq-group details[open] p { padding-top: 16px; }
+.retro-marketing .retro-footer { margin-top: 46px; border-top: 3px solid var(--retro-ink); padding-top: 62px; background: var(--retro-paper); overflow: hidden; }
+.retro-marketing .retro-footer-cta { display: flex; align-items: center; justify-content: space-between; gap: 35px; padding-bottom: 48px; }
+.retro-marketing .retro-footer h2 { font-size: clamp(36px, 4.8vw, 58px); line-height: 1.15; letter-spacing: -.04em; margin: 0; }
+.retro-marketing .retro-footer-cta > a { flex-shrink: 0; }
+.retro-marketing .retro-footer-links { display: flex; flex-wrap: wrap; align-items: center; gap: 31px; border-top: 2px solid var(--retro-ink); border-bottom: 1px solid var(--retro-ink); padding: 23px 0; }
+.retro-marketing .retro-footer-links a { display: flex; align-items: center; gap: 6px; font-size: 11px; text-decoration: underline; text-underline-offset: 4px; }
+.retro-marketing .retro-footer-meta { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-top: 18px; font-size: 8px; }
+.retro-marketing .retro-footer-wordmark { margin: 6px -9px -52px; font-family: var(--font-retro-heading), sans-serif; font-size: clamp(180px, 31vw, 395px); font-weight: 800; line-height: 1.02; letter-spacing: -.07em; text-align: center; user-select: none; }
+.retro-marketing main > article { background: var(--retro-paper); margin-top: 45px; margin-bottom: 45px; border: 2px solid var(--retro-ink); box-shadow: 5px 5px 0 var(--retro-ink); }
+.retro-marketing main > article > h1 { font-size: 40px; line-height: 1.15; letter-spacing: -.035em; }
+.retro-marketing main > article > h2 { font-size: 25px; }
+@media (max-width: 1050px) {
+  .retro-marketing .retro-nav-desktop { gap: 15px; }
+  .retro-marketing .retro-header-row { gap: 21px; }
+  .retro-marketing .retro-hero-grid { gap: 40px; grid-template-columns: 1.3fr 1fr; }
+  .retro-marketing .retro-setup-grid, .retro-marketing .retro-integration, .retro-marketing .retro-faq-grid { gap: 38px; }
+  .retro-marketing .retro-debugger-cell { padding-inline: 14px; }
+}
+@media (max-width: 850px) {
+  .retro-marketing .retro-container { width: min(720px, calc(100% - 42px)); }
+  .retro-marketing .retro-nav-desktop { display: none; }
+  .retro-marketing .retro-nav-cta { margin-left: auto; }
+  .retro-marketing .retro-menu-toggle { display: inline-flex; }
+  .retro-marketing .retro-nav-mobile { display: grid; padding: 4px 22px 20px; gap: 0; border-top: 1px solid var(--retro-ink); }
+  .retro-marketing .retro-nav-mobile a { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #10101066; font-size: 12px; }
+  .retro-marketing .retro-hero-grid { grid-template-columns: 1fr; gap: 37px; margin-bottom: 43px; }
+  .retro-marketing .retro-hero { padding-top: 45px; }
+  .retro-marketing .retro-hero h1 { max-width: 640px; font-size: 58px; }
+  .retro-marketing .retro-hero-index { max-width: none; }
+  .retro-marketing .retro-index-item { padding-block: 16px; }
+  .retro-marketing .retro-debugger-grid { grid-template-columns: 1fr 1fr; }
+  .retro-marketing .retro-debugger-cell:nth-child(2) { border-right: 0; }
+  .retro-marketing .retro-debugger-cell:nth-child(-n+2) { border-bottom: 1px solid var(--retro-ink); }
+  .retro-marketing .retro-debugger-cell { padding: 19px 22px; }
+  .retro-marketing .retro-capture-symbol { margin-top: 0; }
+  .retro-marketing .retro-setup-grid, .retro-marketing .retro-integration, .retro-marketing .retro-faq-grid { grid-template-columns: 1fr; gap: 28px; }
+  .retro-marketing .retro-section-intro { grid-template-columns: 1fr; gap: 20px; }
+  .retro-marketing .retro-feature-grid { grid-template-columns: 1fr; gap: 24px; }
+  .retro-marketing .retro-feature { display: grid; grid-template-columns: 1fr 1.2fr; }
+  .retro-marketing .retro-feature-visual { height: 247px; border-bottom: 0; border-right: 2px solid var(--retro-ink); }
+  .retro-marketing .retro-feature-copy p { min-height: 0; }
+  .retro-marketing .retro-footer-cta { align-items: flex-start; flex-direction: column; gap: 30px; }
+}
+@media (max-width: 520px) {
+  .retro-marketing .retro-container { width: calc(100% - 36px); }
+  .retro-marketing .retro-banner { gap: 15px; justify-content: space-between; padding-inline: 16px; font-size: 8px; }
+  .retro-marketing .retro-banner-extra { display: none; }
+  .retro-marketing .retro-header-row { min-height: 79px; gap: 11px; }
+  .retro-marketing .retro-brand { padding: 7px 9px; }
+  .retro-marketing .retro-brand img { height: 23px !important; max-width: 72px; }
+  .retro-marketing .retro-nav-cta { font-size: 9px; padding: 10px; gap: 5px; box-shadow: 3px 3px 0 var(--retro-ink); }
+  .retro-marketing .retro-menu-toggle { width: 33px; height: 35px; }
+  .retro-marketing .retro-hero h1 { font-size: clamp(39px, 10.8vw, 53px); }
+  .retro-marketing .retro-eyebrow { font-size: 9px; margin-bottom: 20px; }
+  .retro-marketing .retro-lead { font-size: 12px; }
+  .retro-marketing .retro-actions { gap: 13px; }
+  .retro-marketing .retro-actions .retro-button { padding: 12px 13px; gap: 10px; font-size: 11px; }
+  .retro-marketing .retro-smallprint { font-size: 10px; }
+  .retro-marketing .retro-index-item p { font-size: 12px; }
+  .retro-marketing .retro-hero { padding-bottom: 39px; }
+  .retro-marketing .retro-debugger-title { padding: 11px 12px; font-size: 8px; gap: 8px; }
+  .retro-marketing .retro-debugger-title > span:first-child { gap: 6px; }
+  .retro-marketing .retro-debugger-title svg { width: 13px; }
+  .retro-marketing .retro-debugger-stamp { font-size: 6px; padding: 2px 4px; }
+  .retro-marketing .retro-debugger-toolbar { gap: 6px; padding: 10px; }
+  .retro-marketing .retro-debugger-tabs { gap: 6px; }
+  .retro-marketing .retro-debugger-tabs button { font-size: 9px; padding: 5px 7px; }
+  .retro-marketing .retro-debugger-play { font-size: 7px; gap: 4px; }
+  .retro-marketing .retro-debugger-cell { padding: 16px 11px; }
+  .retro-marketing .retro-debugger-inputs { grid-column: 1; }
+  .retro-marketing .retro-debugger-label { font-size: 8px; margin-bottom: 17px; }
+  .retro-marketing .retro-source-list > div { font-size: 8px; gap: 6px; }
+  .retro-marketing .retro-source-list svg { width: 14px; height: 14px; padding: 5px; }
+  .retro-marketing .retro-debugger-note { font-size: 7px; }
+  .retro-marketing .retro-debugger-kind { font-size: 6px; margin-top: -11px; }
+  .retro-marketing .retro-debugger-steps { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--retro-ink); }
+  .retro-marketing .retro-span-list { min-height: 0; }
+  .retro-marketing .retro-span-step code { font-size: 10px; }
+  .retro-marketing .retro-debugger-record { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 0 15px; align-items: center; }
+  .retro-marketing .retro-debugger-record > .retro-debugger-label { grid-column: 1 / -1; }
+  .retro-marketing .retro-record-count strong { font-size: 40px; }
+  .retro-marketing .retro-record-count span { font-size: 7px; }
+  .retro-marketing .retro-record-result { margin: 0; padding-block: 13px; }
+  .retro-marketing .retro-debugger-record > a { grid-column: 1 / -1; margin-top: 20px; font-size: 8px; }
+  .retro-marketing .retro-debugger-footer { flex-direction: column; align-items: flex-start; gap: 3px; font-size: 6px; padding: 8px 11px; }
+  .retro-marketing .retro-caption { font-size: 9px; }
+  .retro-marketing .retro-section { padding-block: 28px 39px; }
+  .retro-marketing .retro-section-label { margin-bottom: 30px; font-size: 8px; gap: 10px; }
+  .retro-marketing .retro-section-label span:last-child { max-width: 135px; font-size: 7px; }
+  .retro-marketing .retro-section-title { font-size: 36px; }
+  .retro-marketing .retro-body { font-size: 12px; }
+  .retro-marketing .retro-checklist { font-size: 12px; }
+  .retro-marketing .retro-command pre { font-size: 9px; padding: 16px 13px; }
+  .retro-marketing .retro-command-header { padding: 9px 11px; font-size: 9px; }
+  .retro-marketing .retro-command-header button { font-size: 8px; }
+  .retro-marketing .retro-integration h3 { font-size: 29px; }
+  .retro-marketing .retro-integration { padding-block: 29px; }
+  .retro-marketing .retro-feature { display: block; }
+  .retro-marketing .retro-feature-visual { border-right: 0; border-bottom: 2px solid var(--retro-ink); height: 235px; }
+  .retro-marketing .retro-feature-copy h3 { font-size: 29px; }
+  .retro-marketing .retro-feature-copy p { font-size: 12px; }
+  .retro-marketing .retro-table th, .retro-marketing .retro-table td { padding: 13px 11px; font-size: 11px; }
+  .retro-marketing .retro-table th:first-child { width: 32%; }
+  .retro-marketing .retro-table thead th { font-size: 10px; }
+  .retro-marketing .retro-faq-group summary { padding: 16px 14px; font-size: 12px; }
+  .retro-marketing .retro-faq-group details p { padding-inline: 14px; font-size: 12px; }
+  .retro-marketing .retro-footer { margin-top: 28px; padding-top: 41px; }
+  .retro-marketing .retro-footer h2 { font-size: 37px; }
+  .retro-marketing .retro-footer-links { gap: 16px 24px; padding-block: 19px; }
+  .retro-marketing .retro-footer-links a { font-size: 10px; }
+  .retro-marketing .retro-footer-meta { font-size: 9px; flex-direction: column; align-items: flex-start; gap: 5px; }
+  .retro-marketing .retro-footer-wordmark { font-size: 35vw; margin-bottom: -13px; margin-top: 17px; }
+  .retro-marketing main > article { margin: 24px 18px; padding: 30px 20px; }
+  .retro-marketing main > article > h1 { font-size: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .retro-marketing *, .retro-marketing *::before, .retro-marketing *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
