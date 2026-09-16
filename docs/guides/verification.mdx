@@ -26,7 +26,7 @@ python3 scripts/verify-export.py evidence.zip --public-key '<trusted public key>
 
 A key embedded in an archive is insufficient by itself: an attacker could replace both the contents and that key. The verifier compares the archive key to the separately supplied trusted key and checks the PDF and verification JSON signatures.
 
-PDF and evidence reports summarize recorded audit activity; they are not a database backup. Copy/download full captured values from the inspector, and use [PostgreSQL backup and restore](/guides/self-hosting) to preserve the full instance. The ZIP signs the PDF and verification JSON; its README and explanatory text are informational.
+PDF and evidence reports summarize recorded audit activity; they are not a database backup. Copy/download full captured values from the inspector, and use [PostgreSQL backup and restore](https://github.com/fact0-ai/fact0/blob/main/docs/guides/self-hosting.mdx) to preserve the full instance. The ZIP signs the PDF and verification JSON; its README and explanatory text are informational.
 
 ## What a passing result means
 

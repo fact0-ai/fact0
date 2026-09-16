@@ -5,7 +5,7 @@
   "logo": {
     "light": "/logo.svg",
     "dark": "/logo-dark.svg",
-    "href": "https://fact0.io"
+    "href": "https://github.com/fact0-ai/fact0"
   },
   "favicon": {
     "light": "/favicon.svg",
@@ -24,7 +24,7 @@
   ],
   "topbarCtaButton": {
     "name": "Run locally",
-    "url": "https://docs.fact0.io/quickstart"
+    "url": "https://github.com/fact0-ai/fact0#quickstart"
   },
   "contextual": {
     "options": [

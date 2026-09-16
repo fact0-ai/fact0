@@ -5,11 +5,17 @@ import (
 )
 
 // Validate enforces the canonical schema requirements on an inbound event.
-// IDs, timestamps and hashes are populated by the service, so they are not
-// checked here - this validator runs on the user-supplied payload only.
+// IDs, omitted timestamps and hashes are populated by the service. Explicit
+// timestamps must fit the supported audit history range.
 func Validate(e *AuditEvent) error {
 	if e == nil {
 		return apperrors.InvalidInput("event must not be nil")
+	}
+	if !e.Timestamp.IsZero() && e.Timestamp.Before(historyStart) {
+		return apperrors.Validation("timestamp", "must be at or after 1970-01-01T00:00:00Z")
+	}
+	if e.Timestamp.After(farFuture) {
+		return apperrors.Validation("timestamp", "must be at or before 9999-12-31T23:59:59.999999999Z")
 	}
 	if e.Actor.ID == "" {
 		return apperrors.Validation("actor.id", "must not be empty")

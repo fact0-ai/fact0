@@ -1,17 +1,23 @@
-/** Mintlify docs - hosted at docs.fact0.io (not proxied through fact0.io). */
-
+/** Set at build time only when the published docs match this release. */
 export const DOCS_ORIGIN =
-  process.env.NEXT_PUBLIC_DOCS_URL?.trim() ||
-  process.env.FACT0_MINTLIFY_URL?.trim() ||
-  "https://docs.fact0.io";
+  process.env.NEXT_PUBLIC_DOCS_URL?.trim().replace(/\/+$/, "") || "";
 
-/** Absolute URL on the docs site. Omit path for the docs home. */
+const SOURCE_ORIGIN = "https://github.com/fact0-ai/fact0/blob/main";
+
+/** Default to the release instructions until a published docs URL is supplied. */
 export function docsHref(path?: string): string {
-  if (!path) return DOCS_ORIGIN;
-  const raw = path.startsWith("/docs")
-    ? path.slice("/docs".length) || "/introduction"
-    : path.startsWith("/")
-      ? path
-      : `/${path}`;
-  return `${DOCS_ORIGIN}${raw}`;
+  const raw = (path || "")
+    .replace(/^\/docs(?:\/|$)/, "")
+    .replace(/^\/+/, "");
+  if (DOCS_ORIGIN) return raw ? `${DOCS_ORIGIN}/${raw}` : DOCS_ORIGIN;
+
+  const [pathname, fragment] = raw.split("#", 2);
+  const page = pathname.replace(/\/+$/, "");
+  if (!fragment) {
+    if (!page || page === "quickstart")
+      return `${SOURCE_ORIGIN}/README.md#quickstart`;
+    if (page === "sdk/python/installation")
+      return `${SOURCE_ORIGIN}/README.md#python`;
+  }
+  return `${SOURCE_ORIGIN}/docs/${page || "introduction"}.mdx${fragment ? `#${fragment}` : ""}`;
 }

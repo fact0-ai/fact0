@@ -6,10 +6,9 @@ Record Claude Code sessions in your self-hosted Fact0 instance. The collector ca
 
 ## Local setup
 
-Start Fact0 using the repository's [quickstart](../README.md#quickstart), then create an API key in the dashboard. Building from source requires the Go version declared in `collector/go.mod`. From the repository root:
+Start Fact0 using the repository's [quickstart](../README.md#quickstart), then create an API key in the dashboard. From the repository root, prepare the published **0.3.0** collector and start Claude Code:
 
 ```sh
-bash claude-code-plugin/scripts/build.sh
 export FACT0_BASE_URL=http://localhost:8000
 export FACT0_API_KEY=your-local-api-key
 claude-code-plugin/bin/fact0-cc prepare
@@ -19,13 +18,15 @@ claude --plugin-dir ./claude-code-plugin
 Alternatively, install from the marketplace inside Claude Code:
 
 ```text
-/plugin marketplace add /absolute/path/to/fact0
+/plugin marketplace add fact0-ai/fact0
 /plugin install fact0-claude-code@fact0
 ```
 
 The repository root contains `.claude-plugin/marketplace.json`; the installable plugin lives in `claude-code-plugin`. Restart Claude Code after installation or environment changes.
 
-For a published release, run the installed plugin's `bin/fact0-cc prepare` once before starting your first captured session. It downloads the platform binary and verifies the release checksum. Source checkouts should use `scripts/build.sh`, particularly before a release is published. Hooks never download binaries. macOS and Linux on arm64 and amd64 are supported.
+`prepare` downloads the versioned platform binary and verifies the release checksum. No Go installation is required; preparation uses `curl` and either `sha256sum` or `shasum`. Hooks never download binaries. macOS and Linux on arm64 and amd64 are supported. If you install the plugin without a repository checkout, run the installed plugin's `bin/fact0-cc prepare` before your first captured session.
+
+For a modified or unreleased collector, install the Go version declared in `collector/go.mod`, run `bash claude-code-plugin/scripts/build.sh` from the repository root, then run `claude-code-plugin/bin/fact0-cc prepare`. The wrapper prefers the resulting `fact0-cc-dev` binary over the downloaded release. `FACT0_CC_BIN` can select a separately built binary.
 
 ## Inspect and retry
 
@@ -35,7 +36,7 @@ claude-code-plugin/bin/fact0-cc flush
 claude-code-plugin/bin/fact0-cc verify
 ```
 
-`status` reads local configuration, pending hooks, permanent delivery failures, and the last capture error. `flush` retries the queue. `verify` displays the backend's `valid` and `events_checked` result. A valid chain verifies recorded events; it does not prove that every Claude action was captured.
+`status` reads local configuration, pending hooks, permanent delivery failures, and the last capture error. `flush` retries the queue. `verify` displays the backend's `valid` and `events_checked` result. Manual commands return a nonzero exit code when they cannot complete; `verify` also fails for an invalid chain, and `flush` fails while delivery errors remain in its queue. A successful `status` means its local report was readable, not that delivery or capture is complete. Hook commands always exit zero so capture failures cannot block Claude. A valid chain verifies recorded events; it does not prove that every Claude action was captured.
 
 ## Capture and delivery
 

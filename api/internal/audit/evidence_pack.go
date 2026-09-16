@@ -16,11 +16,12 @@ import (
 func EvidencePack(ctx context.Context, svc *Service, w io.Writer, in PDFInput) error {
 	from, to := in.From, in.To
 	if from.IsZero() {
-		from = time.Unix(0, 0).UTC()
+		from = historyStart
 	}
 	if to.IsZero() {
-		to = time.Now().UTC()
+		to = farFuture
 	}
+	in.From, in.To = from, to
 
 	verify, err := svc.Verify(ctx, in.TenantID, from, to)
 	if err != nil {

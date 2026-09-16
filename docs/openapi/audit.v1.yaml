@@ -201,6 +201,7 @@ paths:
     get:
       tags: [Verify]
       summary: Walk the hash chain and verify integrity
+      description: Omitted bounds cover all supported recorded history, from 1970-01-01T00:00:00Z through 9999-12-31T23:59:59.999999999Z, including future-dated captures already received.
       operationId: verifyChain
       parameters:
         - name: from
@@ -229,7 +230,8 @@ paths:
   /v1/export/pdf:
     get:
       tags: [Export]
-      summary: Download SOC 2 audit PDF pack
+      summary: Download recorded audit PDF report
+      description: Omitted bounds cover the same full supported history as verification, including future-dated captures already received. Supply from or to to restrict capture timestamps.
       operationId: exportPDF
       parameters:
         - name: from
@@ -254,6 +256,7 @@ paths:
     get:
       tags: [Export]
       summary: Download ZIP evidence pack (PDF + metadata)
+      description: Omitted bounds cover the same full supported history as verification, including future-dated captures already received. The PDF and verification JSON use identical bounds.
       operationId: exportEvidencePack
       parameters:
         - name: from
@@ -342,6 +345,7 @@ components:
         timestamp:
           type: string
           format: date-time
+          description: Optional capture time; defaults to server time. Explicit values must be between 1970-01-01T00:00:00Z and 9999-12-31T23:59:59.999999999Z inclusive. Future-dated captures within this range are accepted and included in default verification and exports. Storage retains microsecond precision.
         actor:
           $ref: '#/components/schemas/Actor'
         action:

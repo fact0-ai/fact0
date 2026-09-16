@@ -14,10 +14,10 @@ import (
 // and an explicit explanation of the evidence limitations.
 func renderPDF(ctx context.Context, w io.Writer, svc *Service, in PDFInput) error {
 	if in.From.IsZero() {
-		in.From = time.Unix(0, 0).UTC()
+		in.From = historyStart
 	}
 	if in.To.IsZero() {
-		in.To = time.Now().UTC()
+		in.To = farFuture
 	}
 	if in.VerifyURL == "" {
 		in.VerifyURL = "/v1/verify"
@@ -97,8 +97,12 @@ func renderCover(pdf *gofpdf.Fpdf, in PDFInput, v *VerifyResult) {
 		pdf.CellFormat(0, 7, value, "", 1, "L", false, 0, "")
 	}
 	box("Tenant", fmt.Sprintf("%s (%s)", in.TenantName, in.TenantID))
-	box("Period start", in.From.UTC().Format(time.RFC3339))
-	box("Period end", in.To.UTC().Format(time.RFC3339))
+	if in.From.Equal(historyStart) && in.To.Equal(farFuture) {
+		box("Period", "All recorded audit history")
+	} else {
+		box("Period start", in.From.UTC().Format(time.RFC3339))
+		box("Period end", in.To.UTC().Format(time.RFC3339))
+	}
 	box("Events covered", fmt.Sprintf("%d", v.EventsChecked))
 	box("Generated at", time.Now().UTC().Format(time.RFC3339))
 }

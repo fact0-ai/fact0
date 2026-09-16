@@ -251,21 +251,25 @@ func prepareHook(ctx context.Context, client *fact0.Client, cfg Config, env *hoo
 
 // drainHooks serializes all read/modify/write session operations across hook
 // worker processes. Capture itself never waits on this lock or on network I/O.
-func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) {
+func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) error {
 	lock, err := lockFile(ctx, filepath.Join(cfg.StateDir, "drain.lock"), true)
 	if err != nil {
-		return
+		return err
 	}
 	defer unlockFile(lock)
 	entries, err := os.ReadDir(spoolDir(cfg))
 	if err != nil {
-		return
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 	blocked := map[string]bool{}
+	var retained error
 	for _, entry := range entries {
 		if ctx.Err() != nil {
-			return
+			return ctx.Err()
 		}
 		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "hook-") || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -273,24 +277,25 @@ func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) {
 		path := filepath.Join(spoolDir(cfg), entry.Name())
 		data, err := os.ReadFile(path)
 		if err != nil {
-			continue
+			return err
 		}
 		var env hookEnvelope
 		dec := json.NewDecoder(bytes.NewReader(data))
 		dec.UseNumber()
 		if err := dec.Decode(&env); err != nil {
 			recordCaptureFailure(cfg, "unreadable journal retained: "+entry.Name())
-			return
+			return fmt.Errorf("unreadable journal retained: %s: %w", entry.Name(), err)
 		}
 		if env.ID == "" || env.Input.SessionID == "" || env.Next < 0 || env.Next > len(env.Operations) {
 			recordCaptureFailure(cfg, "invalid journal retained: "+entry.Name())
-			return
+			return fmt.Errorf("invalid journal retained: %s", entry.Name())
 		}
 		if blocked[env.Input.SessionID] {
 			continue
 		}
 		if env.Permanent && env.ConfigKey == configKey(cfg) {
 			blocked[env.Input.SessionID] = true
+			retained = fmt.Errorf("hook %s requires configuration/repair: %s", env.ID, env.LastError)
 			continue
 		}
 		if !env.Prepared {
@@ -302,7 +307,7 @@ func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) {
 				env.Attempts++
 				_ = writeEnvelope(cfg, path, &env)
 				recordCaptureFailure(cfg, err.Error())
-				return
+				return err
 			}
 		}
 		// State is derived from the durable journal. Reapplying it is safe and
@@ -310,7 +315,7 @@ func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) {
 		if env.State != nil {
 			if err := SaveState(cfg, env.State); err != nil {
 				recordCaptureFailure(cfg, err.Error())
-				return
+				return err
 			}
 		}
 		for env.Next < len(env.Operations) {
@@ -325,8 +330,9 @@ func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) {
 				recordCaptureFailure(cfg, err.Error())
 				blocked[env.Input.SessionID] = true
 				if !env.Permanent {
-					return
+					return err
 				}
+				retained = err
 				break
 			}
 			env.Next++
@@ -334,13 +340,13 @@ func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) {
 			env.LastError = ""
 			if err := writeEnvelope(cfg, path, &env); err != nil {
 				recordCaptureFailure(cfg, err.Error())
-				return
+				return err
 			}
 		}
 		if env.Next == len(env.Operations) {
 			if err := os.Remove(path); err != nil {
 				recordCaptureFailure(cfg, err.Error())
-				return
+				return err
 			}
 			_ = syncDir(spoolDir(cfg))
 			if env.State != nil && env.State.Closed {
@@ -348,6 +354,7 @@ func drainHooks(ctx context.Context, client *fact0.Client, cfg Config) {
 			}
 		}
 	}
+	return retained
 }
 
 type permanentDeliveryError struct{ err error }

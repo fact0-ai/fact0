@@ -9,3 +9,5 @@ The web proxy exposes `/v1/*` and `/api/v1/*` at the application's origin. Dashb
 Use the repository's Python example and Claude Code plugin instructions to record a run. Open Audit for recorded facts and verification, Executions for spans/replay, and Coding Agents for captured Claude Code sessions. Full values come from supported collector hooks/transcripts; missing or oversized content must remain visibly incomplete.
 
 Evidence exports can be signed with an operator-supplied `FACT0_SIGNING_KEY`. Verify the signature against a separately trusted public key. An intact chain or signed export does not certify compliance, event truth, or complete capture.
+
+Audit timestamps before 1970 or after the end of year 9999 UTC are rejected. Omitted verification/export date bounds include all supported recorded history, including accepted captures whose clocks are ahead of the server. Explicit `from` and `to` values narrow that capture-time window.

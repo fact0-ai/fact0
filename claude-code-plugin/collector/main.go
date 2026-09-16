@@ -24,19 +24,27 @@ func logf(format string, args ...any) {
 //
 //	collector <event-name>   (event payload as JSON on stdin)
 //
-// It must NEVER exit non-zero and NEVER print to stdout, so that a collector
-// failure can never block or perturb the user's Claude Code session.
+// Hook commands never exit non-zero or print to stdout, so that a collector
+// failure cannot block Claude. Manual commands report failures with exit 1.
 func main() {
 	os.Exit(run())
 }
 
-// run performs the work and always returns 0 in the MVP. It exists so that
-// deferred cleanup runs before the process exits via main's os.Exit.
+// run keeps hook failures fail-soft while preserving manual command results.
+// Deferred cleanup runs before the process exits via main's os.Exit.
 func run() (result int) {
+	event := ""
+	if len(os.Args) > 1 {
+		event = os.Args[1]
+	}
+	manual := event == "verify" || event == "flush" || event == "status"
 	defer func() {
 		if v := recover(); v != nil {
 			logf("capture panic recovered: %v", v)
 			result = 0
+			if manual {
+				result = 1
+			}
 		}
 	}()
 	cfg := LoadConfig()
@@ -44,26 +52,34 @@ func run() (result int) {
 		logf("missing event name argument")
 		return 0
 	}
-	event := os.Args[1]
 	if event == "status" {
-		printStatus(cfg)
-		return 0
+		return printStatus(cfg)
 	}
 	if event == "verify" {
-		printVerify(cfg)
-		return 0
+		return printVerify(cfg)
 	}
 	if cfg.Disabled {
+		if event == "flush" {
+			logf("flush unavailable: capture is disabled")
+			return 1
+		}
 		return 0
 	}
 	if cfg.APIKey == "" {
+		if event == "flush" {
+			logf("flush unavailable: FACT0_API_KEY is not set")
+			return 1
+		}
 		recordCaptureFailure(cfg, "FACT0_API_KEY is not set; hook was not captured")
 		return 0
 	}
 	if event == "flush" {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
-		drainHooks(ctx, NewFact0(cfg), cfg)
+		if err := drainHooks(ctx, NewFact0(cfg), cfg); err != nil {
+			logf("flush incomplete: %v", err)
+			return 1
+		}
 		return 0
 	}
 	in, err := decodeHook(os.Stdin, cfg)
@@ -97,12 +113,11 @@ func startWorker() error {
 }
 
 // printVerify walks the audit hash chain via the backend and prints a concise
-// summary to stdout. It always exits 0 and is only invoked from the manual
-// "verify" subcommand.
-func printVerify(cfg Config) {
+// summary to stdout. Only a valid verification returns success.
+func printVerify(cfg Config) int {
 	if cfg.APIKey == "" {
 		fmt.Println("fact0-collector verify: FACT0_API_KEY not set; nothing to verify.")
-		return
+		return 1
 	}
 
 	client := NewFact0(cfg)
@@ -112,7 +127,7 @@ func printVerify(cfg Config) {
 	resp, err := client.Audit.Verify(ctx, "")
 	if err != nil {
 		fmt.Printf("fact0-collector verify: could not reach backend: %v\n", err)
-		return
+		return 1
 	}
 
 	verified := false
@@ -131,6 +146,10 @@ func printVerify(cfg Config) {
 	if msg, ok := resp["message"].(string); ok && msg != "" {
 		fmt.Printf("  message:  %s\n", msg)
 	}
+	if !verified {
+		return 1
+	}
+	return 0
 }
 
 // maskKey returns a privacy-preserving rendering of an API key for display.
@@ -155,7 +174,7 @@ func onOff(b bool) string {
 // printStatus writes a concise, human-readable collector status to stdout. It
 // is only ever invoked from the manual "status" subcommand (never a hook), so
 // writing to stdout is safe here. It performs no network calls.
-func printStatus(cfg Config) {
+func printStatus(cfg Config) (result int) {
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "<default>"
@@ -175,7 +194,11 @@ func printStatus(cfg Config) {
 	fmt.Printf("  dead_letter: %d pending\n", CountDeadLetters(cfg))
 
 	fmt.Println("  governance:  disabled in this release")
-	entriesPending, _ := os.ReadDir(spoolDir(cfg))
+	entriesPending, spoolErr := os.ReadDir(spoolDir(cfg))
+	if spoolErr != nil && !os.IsNotExist(spoolErr) {
+		fmt.Printf("  spool_error: %v\n", spoolErr)
+		result = 1
+	}
 	pending := 0
 	permanent := 0
 	for _, e := range entriesPending {
@@ -197,7 +220,10 @@ func printStatus(cfg Config) {
 	entries, err := os.ReadDir(cfg.StateDir)
 	if err != nil {
 		fmt.Printf("    <none: %v>\n", err)
-		return
+		if !os.IsNotExist(err) {
+			result = 1
+		}
+		return result
 	}
 	found := 0
 	for _, e := range entries {
@@ -227,4 +253,5 @@ func printStatus(cfg Config) {
 	if found == 0 {
 		fmt.Println("    <none>")
 	}
+	return result
 }

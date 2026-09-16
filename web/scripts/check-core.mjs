@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
@@ -32,6 +32,40 @@ function load(path, mocks = {}, globals = {}) {
   );
   return exports;
 }
+
+const sourceDocs = load("lib/docs-origin.ts");
+const sourceBase = "https://github.com/fact0-ai/fact0/blob/main";
+for (const path of [undefined, "", "/", "/docs", "/docs/", "quickstart", "/quickstart"])
+  assert.equal(sourceDocs.docsHref(path), `${sourceBase}/README.md#quickstart`);
+assert.equal(
+  sourceDocs.docsHref("/sdk/python/installation"),
+  `${sourceBase}/README.md#python`,
+);
+for (const path of [
+  "integrations/claude-code",
+  "integrations/claude-code#capture-modes",
+  "guides/self-hosting",
+  "concepts/executions",
+  "observability/prompt-registry",
+]) {
+  const [page, fragment] = path.split("#");
+  assert.equal(
+    sourceDocs.docsHref(path),
+    `${sourceBase}/docs/${page}.mdx${fragment ? `#${fragment}` : ""}`,
+  );
+  assert.ok(existsSync(new URL(`../../docs/${page}.mdx`, import.meta.url)));
+}
+const publishedDocs = load("lib/docs-origin.ts", {}, {
+  process: { env: { NEXT_PUBLIC_DOCS_URL: " https://docs.example.invalid/ " } },
+});
+assert.equal(publishedDocs.docsHref(), "https://docs.example.invalid");
+assert.equal(publishedDocs.docsHref("/docs/quickstart"), "https://docs.example.invalid/quickstart");
+assert.equal(
+  publishedDocs.docsHref("integrations/claude-code#capture-modes"),
+  "https://docs.example.invalid/integrations/claude-code#capture-modes",
+);
+console.log("Documentation links passed: GitHub first-use fallback, checked-in guides, anchors and explicit published-docs override.");
+
 const { sanitiseRedirectPath } = load("lib/app-origin.ts");
 for (const path of [
   "//example.com",

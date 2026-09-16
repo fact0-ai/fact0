@@ -53,9 +53,12 @@ type ServiceOptions struct {
 	SigningKey ed25519.PrivateKey
 }
 
-// farFuture is the default upper bound for open-ended verify scans so
-// events are never silently excluded by a narrow now()+ε window on CI.
+// farFuture is the supported upper bound for open-ended audit scans and
+// exports, including already-recorded events captured by clocks ahead of ours.
 var farFuture = time.Date(9999, 12, 31, 23, 59, 59, 999999999, time.UTC)
+
+// historyStart is the earliest supported capture time and default audit range.
+var historyStart = time.Unix(0, 0).UTC()
 
 // NewService constructs a Service. When redactionEnabled is true,
 // every event's metadata is scrubbed via redaction.RedactJSONMap before
@@ -297,7 +300,7 @@ func (s *Service) List(ctx context.Context, tenantID string, f Filter) ([]*Audit
 // mismatch (in chain order).
 func (s *Service) Verify(ctx context.Context, tenantID string, from, to time.Time) (*VerifyResult, error) {
 	if from.IsZero() {
-		from = time.Unix(0, 0).UTC()
+		from = historyStart
 	}
 	if to.IsZero() {
 		to = farFuture
@@ -354,7 +357,7 @@ func (s *Service) Verify(ctx context.Context, tenantID string, from, to time.Tim
 // PDFs or before a "re-anchor all" sweep.
 func (s *Service) VerifyDeep(ctx context.Context, tenantID string, from, to time.Time) (*VerifyResult, error) {
 	if from.IsZero() {
-		from = time.Unix(0, 0).UTC()
+		from = historyStart
 	}
 	if to.IsZero() {
 		to = farFuture

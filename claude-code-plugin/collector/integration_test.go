@@ -29,7 +29,7 @@ func TestCollectorLiveAPI(t *testing.T) {
 	stateDir := t.TempDir()
 	session := "collector-integration-" + strings.TrimPrefix(newSpanID(), "span_")
 	env := cleanEnv("FACT0_BASE_URL="+base, "FACT0_API_KEY="+key, "FACT0_CC_STATE_DIR="+stateDir, "FACT0_CC_CAPTURE_MODE=raw")
-	runHook := func(event string, in HookInput, environment []string) {
+	runCommand := func(event string, in HookInput, environment []string, wantExit int) {
 		t.Helper()
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 		defer cancel()
@@ -42,12 +42,17 @@ func TestCollectorLiveAPI(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("%s failed: %v (%s)", event, err, stderr.String())
+		err := cmd.Run()
+		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != wantExit {
+			t.Fatalf("%s wanted exit %d: %v (%s)", event, wantExit, err, stderr.String())
 		}
 		if stdout.Len() != 0 {
 			t.Fatalf("%s wrote hook output: %q", event, stdout.String())
 		}
+	}
+	runHook := func(event string, in HookInput, environment []string) {
+		t.Helper()
+		runCommand(event, in, environment, 0)
 	}
 	get := func(path string) map[string]any {
 		t.Helper()
@@ -215,7 +220,7 @@ func TestCollectorLiveAPI(t *testing.T) {
 	}
 	rejectedEnv := cleanEnv("FACT0_BASE_URL="+base, "FACT0_API_KEY="+key, "FACT0_CC_STATE_DIR="+rejectedDir, "FACT0_CC_CAPTURE_MODE=raw")
 	runHook("post-tool", HookInput{SessionID: badSession, ToolName: "Read", ToolUseID: "rejected-tool", ToolInput: json.RawMessage(`{"file_path":"/tmp/rejected"}`)}, rejectedEnv)
-	runHook("flush", HookInput{}, rejectedEnv)
+	runCommand("flush", HookInput{}, rejectedEnv, 1)
 	pending := queuedHooks(t, rejectedCfg)
 	if len(pending) != 1 {
 		t.Fatalf("HTTP 200 rejected hook queue length=%d", len(pending))

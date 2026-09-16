@@ -37,7 +37,9 @@ jobs:
           plugin = json.loads(pathlib.Path('claude-code-plugin/.claude-plugin/plugin.json').read_text())
           marketplace = json.loads(pathlib.Path('.claude-plugin/marketplace.json').read_text())
           assert plugin['version'] == version
-          assert all(p['version'] == version for p in marketplace['plugins'])
+          entries = [p for p in marketplace['plugins'] if p['name'] == plugin['name']]
+          assert len(entries) == 1 and entries[0]['source'] == './claude-code-plugin'
+          assert entries[0].get('version', version) == version
           PY
 
       - name: Test

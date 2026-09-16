@@ -5,7 +5,7 @@ description: "Capture supported Claude Code sessions in your own Fact0 installat
 
 ## Prepare the local installation
 
-Complete the [Fact0 quickstart](/quickstart), create a local API key, and set the destination explicitly in the shell where you run Claude Code:
+Complete the [Fact0 quickstart](https://github.com/fact0-ai/fact0#quickstart), create a local API key, and set the destination explicitly in the shell where you run Claude Code:
 
 ```sh
 export FACT0_BASE_URL=http://localhost:8000
@@ -18,18 +18,13 @@ The core captures and inspects activity. It does not enforce policy or require O
 
 ## Prepare and install the collector
 
-From a source checkout, build and prepare the collector before the first session. Install the Go version declared in `claude-code-plugin/collector/go.mod`, then run:
+From the repository root, prepare the published **0.3.0** collector before the first session:
 
 ```sh
-bash claude-code-plugin/scripts/build.sh
 claude-code-plugin/bin/fact0-cc prepare
 ```
 
-The launcher prefers the development binary produced by this command. You can also select a separately built binary with `FACT0_CC_BIN=/absolute/path/to/fact0-cc`.
-
-For a published compatible plugin release, run its `bin/fact0-cc prepare` command before starting Claude Code. That path downloads the versioned binary and verifies its checksum. Use the source build above for an unreleased checkout rather than assuming a release artifact already exists.
-
-The supported binaries are macOS/Linux on arm64 and amd64. Downloads happen during preparation, not a timed Claude hook. Once installed, the collector itself needs only access to your Fact0 API.
+The wrapper downloads the versioned binary and verifies its checksum. No Go installation is required; preparation uses `curl` and either `sha256sum` or `shasum`. The supported binaries are macOS/Linux on arm64 and amd64. Downloads happen during preparation, not a timed Claude hook. Once installed, the collector itself needs only access to your Fact0 API.
 
 Install the published plugin in Claude Code:
 
@@ -45,6 +40,17 @@ claude --plugin-dir ./claude-code-plugin
 ```
 
 Use a synthetic prompt first, perform a tool call and end the session. Open Coding Agents in your local dashboard to inspect prompts, supported assistant text, tool inputs/results, failures and linked execution spans.
+
+### Optional: build a modified or unreleased collector
+
+Install the Go version declared in `claude-code-plugin/collector/go.mod`, then run:
+
+```sh
+bash claude-code-plugin/scripts/build.sh
+claude-code-plugin/bin/fact0-cc prepare
+```
+
+The launcher prefers the `fact0-cc-dev` binary produced by this command. You can also select a separately built binary with `FACT0_CC_BIN=/absolute/path/to/fact0-cc`.
 
 ## Capture modes
 
@@ -64,4 +70,4 @@ Hooks first journal locally, then a background worker delivers to the API. Captu
 
 Requests are limited to 4 MiB. Batches split to fit; a single oversized record is reported as incomplete without silent truncation. Pending records use an owner-readable local spool capped at 256 MiB by default. Pending work is not silently evicted to admit new records. A full or unwritable spool reports failure; content cannot be promised retained in that situation. Increase the configured limit or resolve retained failures before retrying permanent size rejection.
 
-Verification uses the same authenticated Fact0 audit API. It checks recorded chain consistency, not complete Claude capture. See [verification limits](/guides/verification).
+Verification uses the same authenticated Fact0 audit API. It checks recorded chain consistency, not complete Claude capture. See [verification limits](https://github.com/fact0-ai/fact0/blob/main/docs/guides/verification.mdx).

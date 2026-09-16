@@ -1,19 +1,23 @@
 #!/bin/sh
 # Hooks only execute a prepared collector. Network installation is an explicit
-# setup step: fact0-cc prepare. Capture failures always exit 0 with no stdout.
+# setup step: fact0-cc prepare. Hook failures always exit 0 with no stdout.
 set -u
 umask 077
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PLUGIN_DIR=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
 PREPARE=0
 [ "${1:-}" = prepare ] && PREPARE=1
+MANUAL=0
+case "${1:-}" in prepare|verify|flush|status) MANUAL=1;; esac
 log() { printf 'fact0-cc: %s\n' "$1" >&2; }
-fail() { log "$1"; if [ "$PREPARE" = 1 ]; then exit 1; else exit 0; fi; }
+fail() { log "$1"; if [ "$MANUAL" = 1 ]; then exit 1; else exit 0; fi; }
 run() {
     if [ "$PREPARE" = 1 ]; then printf 'Collector ready: %s\n' "$1"; exit 0; fi
     collector=$1
     shift
     "$collector" "$@"
+    collector_status=$?
+    [ "$MANUAL" = 1 ] && exit "$collector_status"
     exit 0
 }
 if [ -n "${FACT0_CC_BIN:-}" ] && [ -x "${FACT0_CC_BIN}" ]; then run "${FACT0_CC_BIN}" "$@"; fi

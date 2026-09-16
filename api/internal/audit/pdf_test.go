@@ -158,3 +158,64 @@ func TestEvidencePack_WithSigningKey(t *testing.T) {
 		t.Errorf("manifest.sig not found in evidence pack")
 	}
 }
+
+func TestAuditTimestampSupportedRange(t *testing.T) {
+	t.Parallel()
+	repo := &fakeRepoWithCounts{newFakeRepo()}
+	svc := NewService(repo, zerologDiscard(), false)
+	ctx := context.Background()
+	const tenant = "epoch_boundary"
+	epoch := time.Unix(0, 0).UTC()
+	early := sampleEvent("early.capture")
+	early.Timestamp = epoch.Add(-time.Microsecond)
+	if _, err := svc.Log(ctx, tenant, early); err == nil {
+		t.Fatal("single ingest accepted a timestamp excluded by default audit ranges")
+	}
+	boundary := sampleEvent("epoch.capture")
+	boundary.Timestamp = epoch
+	if _, err := svc.Log(ctx, tenant, boundary); err != nil {
+		t.Fatalf("epoch itself must be supported: %v", err)
+	}
+	later := sampleEvent("later.capture")
+	later.Timestamp = epoch.Add(time.Microsecond)
+	batch, err := svc.LogBatch(ctx, tenant, []*AuditEvent{early, later})
+	if err != nil || batch.Accepted != 1 || batch.Rejected != 1 || len(batch.Errors) != 1 || batch.Errors[0].Index != 0 {
+		t.Fatalf("batch epoch boundary: %+v %v", batch, err)
+	}
+	future := sampleEvent("future.capture")
+	future.Timestamp = time.Now().UTC().Add(24 * time.Hour)
+	if _, err := svc.Log(ctx, tenant, future); err != nil {
+		t.Fatalf("future capture must be supported: %v", err)
+	}
+	outside := sampleEvent("outside.capture")
+	outside.Timestamp = farFuture.Add(time.Nanosecond)
+	if _, err := svc.Log(ctx, tenant, outside); err == nil {
+		t.Fatal("capture beyond supported upper boundary was accepted")
+	}
+	for _, verify := range []func(context.Context, string, time.Time, time.Time) (*VerifyResult, error){svc.Verify, svc.VerifyDeep} {
+		result, err := verify(ctx, tenant, time.Time{}, time.Time{})
+		if err != nil || !result.Valid || result.EventsChecked != 3 || !result.From.Equal(epoch) || !result.To.Equal(farFuture) {
+			t.Fatalf("default verification omitted accepted history: %+v %v", result, err)
+		}
+	}
+	var buf bytes.Buffer
+	if err := EvidencePack(ctx, svc, &buf, PDFInput{TenantID: tenant}); err != nil {
+		t.Fatal(err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := zr.Open("verification.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	var result VerifyResult
+	if err := json.NewDecoder(file).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.Valid || result.EventsChecked != 3 || !result.From.Equal(epoch) || !result.To.Equal(farFuture) {
+		t.Fatalf("default evidence pack omitted accepted history: %+v", result)
+	}
+}

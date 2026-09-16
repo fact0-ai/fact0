@@ -23,8 +23,8 @@ The generated `.env` contains persistent instance and signing secrets, is ignore
 
 ## Pick a first workflow
 
-- [Python](/sdk/python/installation): run a synthetic nested execution with a successful tool and a handled failure; inspect and export the result.
-- [Claude Code](/integrations/claude-code): prepare the collector, install the plugin and capture an actual local session.
+- [Python](https://github.com/fact0-ai/fact0#python): run a synthetic nested execution with a successful tool and a handled failure; inspect and export the result.
+- [Claude Code](https://github.com/fact0-ai/fact0/blob/main/docs/integrations/claude-code.mdx): prepare the collector, install the plugin and capture an actual local session.
 
 The default full-content Claude profile can store prompts, source and tool output. Reduced capture modes remain available. Missing content is reported as partial or unavailable.
 
@@ -34,4 +34,4 @@ Run `docker compose ps -a` and `docker compose logs --tail=100 migrate api web`.
 
 If a port is already occupied, change `FACT0_WEB_PORT`, `FACT0_API_PORT` and the matching `BETTER_AUTH_URL` in `.env`, recreate the services with `docker compose up -d --force-recreate --wait web api`, and use the matching host API URL in your SDK/plugin.
 
-See [operation and restore](/guides/self-hosting) for backups, password reset, TLS and disk usage.
+See [operation and restore](https://github.com/fact0-ai/fact0/blob/main/docs/guides/self-hosting.mdx) for backups, password reset, TLS and disk usage.
