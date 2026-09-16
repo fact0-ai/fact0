@@ -1,6 +1,6 @@
 ---
 title: Audit client
-description: Go AuditClient API reference for compliance-grade audit logging.
+description: Go AuditClient API reference for self-hosted audit records.
 ---
 
 # Audit client
@@ -13,12 +13,14 @@ import (
 
 client := fact0.NewClient(fact0.Config{
     APIKey: os.Getenv("FACT0_API_KEY"),
+    BaseURL: "http://localhost:8000", // replace with your installation origin
+    SyncIngest: true,
 })
 audit := client.Audit
 ```
 
 <Note>
-  Audit logging requires a write-scoped or read-scoped `f0_live_*` API key.
+  Writing audit events requires a write-scoped `f0_live_*` API key. Read-scoped keys can query, verify and export records.
 </Note>
 
 ## Config Options
@@ -77,7 +79,7 @@ Filters and lists events. The `query` string can contain filters like `?actor_id
 
 `GET /v1/receipts/{id}`
 
-Retrieves an asynchronous ingestion receipt status.
+Compatibility method for asynchronous deployments. The supported core ingests synchronously and does not expose receipt polling.
 
 ## Verify methods
 

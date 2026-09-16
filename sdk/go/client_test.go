@@ -2,6 +2,8 @@ package fact0_test
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,6 +84,51 @@ func TestClientNonRetryableError(t *testing.T) {
 	err := c.Audit.Log(context.Background(), sampleAuditEvent())
 	if err == nil {
 		t.Fatal("expected error for 400 response")
+	}
+}
+
+func TestClientResponsesPreserveCapturedNumbers(t *testing.T) {
+	ms := newMockServer(t)
+	ms.respond = func(*recordedRequest) (int, []byte) {
+		return 200, []byte(`{"metadata":{"integer":9007199254740993,"nested":{"decimal":0.1234567890123456789}},"sequence_number":9007199254740995}`)
+	}
+	c := fact0.NewClient(fact0.Config{BaseURL: ms.URL, APIKey: "f0_live_test"})
+	readers := map[string]func() (map[string]any, error){
+		"audit":     func() (map[string]any, error) { return c.Audit.GetEvent(context.Background(), "event") },
+		"telemetry": func() (map[string]any, error) { return c.Telemetry.Replay(context.Background(), "execution", "") },
+	}
+	for name, read := range readers {
+		t.Run(name, func(t *testing.T) {
+			out, err := read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			metadata := out["metadata"].(map[string]any)
+			if metadata["integer"] != json.Number("9007199254740993") || out["sequence_number"] != json.Number("9007199254740995") {
+				t.Fatalf("integer precision lost: %#v", out)
+			}
+			if metadata["nested"].(map[string]any)["decimal"] != json.Number("0.1234567890123456789") {
+				t.Fatalf("decimal precision lost: %#v", metadata)
+			}
+			roundtrip, err := json.Marshal(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, value := range []string{"9007199254740993", "9007199254740995", "0.1234567890123456789"} {
+				if !strings.Contains(string(roundtrip), value) {
+					t.Fatalf("re-encoding changed %s: %s", value, roundtrip)
+				}
+			}
+		})
+	}
+}
+
+func TestClientRejectsTrailingResponseJSON(t *testing.T) {
+	ms := newMockServer(t)
+	ms.respond = func(*recordedRequest) (int, []byte) { return 200, []byte(`{"id":"event"}{"ignored":true}`) }
+	c := fact0.NewClient(fact0.Config{BaseURL: ms.URL})
+	if _, err := c.Audit.GetEvent(context.Background(), "event"); err == nil {
+		t.Fatal("trailing JSON accepted")
 	}
 }
 

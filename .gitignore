@@ -20,3 +20,26 @@ docs/llms-full.txt
 .DS_Store
 .idea/
 .vscode/
+
+# Self-hosted application and local operator data
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.venv/
+.release-local/
+backups/
+web/node_modules/
+web/.next/
+web/out/
+web/*.tsbuildinfo
+**/.DS_Store
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+api/fact0-bin
+api/fact0-migrate-bin
+
+claude-code-plugin/bin/fact0-cc-local

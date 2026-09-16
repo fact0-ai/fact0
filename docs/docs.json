@@ -18,16 +18,12 @@
   },
   "topbarLinks": [
     {
-      "name": "Dashboard",
-      "url": "https://app.fact0.io"
-    },
-    {
-      "name": "Slack Community",
-      "url": "https://join.slack.com/t/fact0-ai/shared_invite/zt-4287micyp-gFI3OJU0IyEaUmg1Z5cEGg"
+      "name": "GitHub",
+      "url": "https://github.com/fact0-ai/fact0"
     }
   ],
   "topbarCtaButton": {
-    "name": "Get started",
+    "name": "Run locally",
     "url": "https://docs.fact0.io/quickstart"
   },
   "contextual": {
@@ -45,38 +41,38 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Welcome",
+        "tab": "Get started",
         "groups": [
           {
             "group": "Start here",
             "pages": [
-              "introduction"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Agent Prompt",
-        "groups": [
-          {
-            "group": "AI Agent Integration",
-            "pages": [
-              "guides/agent-prompt"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Fact0 Platform",
-        "groups": [
-          {
-            "group": "Getting started",
-            "pages": [
-              "platform/overview",
+              "introduction",
               "quickstart",
-              "changelog"
+              "platform/overview"
             ]
           },
+          {
+            "group": "Workflows",
+            "pages": [
+              "sdk/python/installation",
+              "integrations/claude-code"
+            ]
+          },
+          {
+            "group": "Operation",
+            "pages": [
+              "guides/self-hosting",
+              "guides/security",
+              "guides/verification",
+              "guides/rate-limits",
+              "changelog"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDKs and concepts",
+        "groups": [
           {
             "group": "Concepts",
             "pages": [
@@ -86,52 +82,15 @@
             ]
           },
           {
-            "group": "Observability",
+            "group": "SDKs",
             "pages": [
-              "observability/overview",
-              "observability/prompt-registry"
-            ]
-          },
-          {
-            "group": "Guides",
-            "pages": [
-              "guides/compliance",
-              "guides/alerts",
-              "guides/security",
-              "guides/rate-limits"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "SDK",
-        "groups": [
-          {
-            "group": "Overview",
-            "pages": [
-              "sdk/overview"
-            ]
-          },
-          {
-            "group": "Python",
-            "pages": [
-              "sdk/python/installation",
+              "sdk/overview",
               "sdk/python/audit",
               "sdk/python/telemetry",
-              "sdk/python/async"
-            ]
-          },
-          {
-            "group": "TypeScript",
-            "pages": [
+              "sdk/python/async",
               "sdk/typescript/installation",
               "sdk/typescript/audit",
-              "sdk/typescript/telemetry"
-            ]
-          },
-          {
-            "group": "Go",
-            "pages": [
+              "sdk/typescript/telemetry",
               "sdk/go/installation",
               "sdk/go/audit",
               "sdk/go/telemetry"
@@ -140,62 +99,14 @@
         ]
       },
       {
-        "tab": "Integrations",
+        "tab": "API reference",
         "groups": [
           {
-            "group": "Overview",
-            "pages": [
-              "integrations/overview"
-            ]
-          },
-          {
-            "group": "Coding agents",
-            "pages": [
-              "integrations/claude-code"
-            ]
-          },
-          {
-            "group": "Agent frameworks",
-            "pages": [
-              "integrations/langchain",
-              "integrations/langgraph",
-              "integrations/llamaindex",
-              "integrations/crewai",
-              "integrations/autogen",
-              "integrations/agno",
-              "integrations/camel-ai",
-              "integrations/openai-agents-sdk",
-              "integrations/google-adk",
-              "integrations/mastra",
-              "integrations/vercel-ai-sdk",
-              "integrations/chatdev"
-            ]
-          },
-          {
-            "group": "Web frameworks",
-            "pages": [
-              "integrations/fastapi",
-              "integrations/nextjs",
-              "integrations/express"
-            ]
-          },
-          {
-            "group": "Observability",
-            "pages": [
-              "integrations/opentelemetry"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "API Reference",
-        "groups": [
-          {
-            "group": "Audit API",
+            "group": "Audit",
             "openapi": "openapi/audit.v1.yaml"
           },
           {
-            "group": "Telemetry API",
+            "group": "Telemetry",
             "openapi": "openapi/telemetry.v1.yaml"
           }
         ]
@@ -203,7 +114,6 @@
     ]
   },
   "footerSocials": {
-    "github": "https://github.com/fact0-ai/fact0",
-    "slack": "https://join.slack.com/t/fact0-ai/shared_invite/zt-4287micyp-gFI3OJU0IyEaUmg1Z5cEGg"
+    "github": "https://github.com/fact0-ai/fact0"
   }
 }

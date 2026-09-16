@@ -51,7 +51,10 @@ func MaybeModelInvocationSpan(in HookInput, executionID, parentSpanID string) (m
 	copyToken([]string{"output_tokens", "completion_tokens"}, "completion_tokens")
 	copyToken([]string{"total_tokens", "total"}, "total_tokens")
 
-	now := nowRFC3339()
+	now := in.Timestamp
+	if now == "" {
+		now = nowRFC3339()
+	}
 	span := map[string]any{
 		"id":               newSpanID(),
 		"execution_id":     executionID,

@@ -1,0 +1,24 @@
+# Build outputs
+bin/
+coverage.out
+coverage.html
+
+# Generated protobuf (rebuilt inside container)
+gen/
+
+# Local dev tooling
+docker/data/
+
+# Test / example scripts
+examples/
+agent-examples/
+
+# Docs
+docs/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store

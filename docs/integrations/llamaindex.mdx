@@ -14,10 +14,11 @@ description: Capture retrieval and LLM telemetry from LlamaIndex query engines.
 Wrap query engine calls in a telemetry execution. Use `MODEL_INVOCATION` for the LLM call and `TOOL_CALL` for retrievers.
 
 ```python
+import os
 import fact0
 from llama_index.core import VectorStoreIndex
 
-client = fact0.Client(api_key="f0_live_...")
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 index = VectorStoreIndex.from_documents(documents)
 query_engine = index.as_query_engine()
 

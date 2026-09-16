@@ -13,6 +13,8 @@ import (
 
 client := fact0.NewClient(fact0.Config{
     APIKey: os.Getenv("FACT0_API_KEY"),
+    BaseURL: "http://localhost:8000", // replace with your installation origin
+    SyncIngest: true,
 })
 tel := client.Telemetry
 ```

@@ -8,7 +8,7 @@ description: Install @fact0/sdk v1.0.2 for Node.js and TypeScript agent stacks.
 | | |
 |---|---|
 | **npm** | [`@fact0/sdk`](https://www.npmjs.com/package/@fact0/sdk) v1.0.2 |
-| **API** | `https://api.fact0.io` |
+| **Self-hosted API** | `http://localhost:8000` (set explicitly) |
 | **Requires** | Node.js 18+ |
 
 ```bash
@@ -20,6 +20,7 @@ import { Fact0Client } from "@fact0/sdk";
 
 const client = new Fact0Client({
   apiKey: process.env.FACT0_API_KEY!,
+  baseUrl: process.env.FACT0_BASE_URL ?? "http://localhost:8000",
 });
 
 await client.audit.log({
@@ -49,4 +50,4 @@ Types are generated from OpenAPI specs in `openapi/`.
 |----------|---------|
 | `FACT0_API_KEY` | Bearer API key (optional if `apiKey` is set in code) |
 
-API origin defaults to `https://api.fact0.io`. Override with `baseUrl` in the constructor for local dev (e.g. `http://localhost:8000`).
+API origin defaults to `https://api.fact0.io`. Always override it with `baseUrl` for your self-hosted installation, as shown above.

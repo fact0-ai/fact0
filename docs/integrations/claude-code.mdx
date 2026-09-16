@@ -1,133 +1,67 @@
 ---
-title: Claude Code
-description: Stream every Claude Code session into Fact0 as tamper-evident audit events and execution telemetry.
+title: "Claude Code"
+description: "Capture supported Claude Code sessions in your own Fact0 installation."
 ---
 
-# Claude Code
+## Prepare the local installation
 
-Claude Code is an AI agent that takes consequential actions — running shell
-commands, editing files, opening PRs. The `fact0-claude-code` plugin makes those
-actions visible: it hooks every Claude Code lifecycle event (prompts, tool
-calls, permission decisions, subagents, session start/end), maps it to the Fact0
-audit/telemetry schema, and ships it to Fact0. Each coding session becomes a
-hash-chained, queryable, governance-ready fact log — with zero per-session
-configuration.
+Complete the [Fact0 quickstart](/quickstart), create a local API key, and set the destination explicitly in the shell where you run Claude Code:
 
-- **Audit trail for AI-written code** — who (agent vs. human vs. system) did
-  what, when, against which resource, with what outcome.
-- **Execution telemetry** — each session maps to a Fact0 execution; turns and
-  tool calls become spans with causality, including subagent nesting.
-- **Governance** — block dangerous tool calls before they run, and prove the
-  decision afterward.
+```sh
+export FACT0_BASE_URL=http://localhost:8000
+# Set FACT0_API_KEY to a key created in your local dashboard.
+export FACT0_CC_CAPTURE_MODE=raw
+export FACT0_CC_REMOTE_POLICY=0
+```
 
-## Install
+The core captures and inspects activity. It does not enforce policy or require OTLP. Claude Code continues to use your existing model account.
 
-Inside Claude Code:
+## Prepare and install the collector
+
+From a source checkout, build and prepare the collector before the first session. Install the Go version declared in `claude-code-plugin/collector/go.mod`, then run:
+
+```sh
+bash claude-code-plugin/scripts/build.sh
+claude-code-plugin/bin/fact0-cc prepare
+```
+
+The launcher prefers the development binary produced by this command. You can also select a separately built binary with `FACT0_CC_BIN=/absolute/path/to/fact0-cc`.
+
+For a published compatible plugin release, run its `bin/fact0-cc prepare` command before starting Claude Code. That path downloads the versioned binary and verifies its checksum. Use the source build above for an unreleased checkout rather than assuming a release artifact already exists.
+
+The supported binaries are macOS/Linux on arm64 and amd64. Downloads happen during preparation, not a timed Claude hook. Once installed, the collector itself needs only access to your Fact0 API.
+
+Install the published plugin in Claude Code:
 
 ```text
 /plugin marketplace add fact0-ai/fact0
 /plugin install fact0-claude-code@fact0
 ```
 
-Then set your API key once:
+For a local checkout, start Claude with its plugin directory:
 
-```bash
-export FACT0_API_KEY=f0_live_...   # fact0.io dashboard -> API Keys
+```sh
+claude --plugin-dir ./claude-code-plugin
 ```
 
-Every session on the machine now auto-logs. Run `/fact0-status` inside Claude
-Code to confirm capture is active.
+Use a synthetic prompt first, perform a tool call and end the session. Open Coding Agents in your local dashboard to inspect prompts, supported assistant text, tool inputs/results, failures and linked execution spans.
 
-## What gets captured
+## Capture modes
 
-| Claude Code event | Fact0 record |
-|---|---|
-| `SessionStart` | Starts a telemetry **execution** keyed by `session_id` |
-| `UserPromptSubmit` | Audit `claude_code.prompt.submit` (prompt SHA-256 + length) |
-| `PreToolUse` | Opens a `TOOL_CALL` span; governance decision point |
-| `PostToolUse` | Closes the span + audit event with the derived resource (file, command, MCP tool) |
-| `Notification` | Audit `claude_code.permission.request` |
-| `SubagentStop` | Nested span / causality edge |
-| `Stop` | Closes the turn span |
-| `SessionEnd` | Ends the execution and flushes |
+| Mode | Stored content |
+| --- | --- |
+| `raw` (default) | Full values from supported hooks and supported transcript text. The core API does not redact the local profile. |
+| `metadata` | Reduced tool summaries and readable prompt/response previews. This is not a content-free mode. |
+| `hash` | Activity metadata and content fingerprints with readable content excluded by the collector. Resource labels may still identify local resources; inspect the documented payload before relying on anonymity. |
 
-Actor identity is audit-grade: `agent` for Claude itself, `human` for the
-developer (OS user by default, or `FACT0_CC_ACTOR_ID` / `FACT0_CC_ACTOR_EMAIL`),
-`system` for permission events.
+Raw capture may store prompts, source code, file paths, tool results and errors. Access is protected by your instance authentication, database permissions and local spool permissions. Preview truncation in the inspector does not truncate the stored full value; use the expanded view or download.
 
-## Privacy model
+Full capture does not mean every Claude interaction is observable. Missing, malformed, unsupported or oversized transcript content produces partial/unavailable status with a reason. Costs and token counts are estimates when their source data is available.
 
-Redaction happens **on your machine before anything is sent**, at one of three
-levels set by `FACT0_CC_CAPTURE_MODE`:
+## Delivery and recovery
 
-| Mode | What ships raw | What stays hashed |
-|---|---|---|
-| `metadata` (default) | File paths, command text, prompts, tool names | File contents, tool outputs |
-| `hash` | Nothing — every string is SHA-256 + length | Everything |
-| `raw` | Everything, including contents and outputs | Nothing |
+Hooks first journal locally, then a background worker delivers to the API. Capture errors are reported without becoming policy decisions or blocking Claude actions. Run `claude-code-plugin/bin/fact0-cc status` to inspect configuration/delivery state and `claude-code-plugin/bin/fact0-cc flush` to retry pending work after restoring API connectivity.
 
-The `metadata` default is what makes the Coding Agents dashboard view readable
-(`Edit api/handler.go`, `Bash go test ./...`) without shipping file contents.
-Use `hash` for locked-down environments.
+Requests are limited to 4 MiB. Batches split to fit; a single oversized record is reported as incomplete without silent truncation. Pending records use an owner-readable local spool capped at 256 MiB by default. Pending work is not silently evicted to admit new records. A full or unwritable spool reports failure; content cannot be promised retained in that situation. Increase the configured limit or resolve retained failures before retrying permanent size rejection.
 
-## Delivery guarantees
-
-Hooks never block or slow the session, and a network blip does not lose events.
-When a send fails, the collector persists the payload to a local dead-letter
-queue and redelivers it automatically on a later hook invocation — oldest first,
-with original event timestamps preserved in the hash chain. Letters that fail
-20 deliveries are kept for inspection but never retried. `fact0-cc status`
-reports the pending count.
-
-Executions self-heal too: if a session has no execution (the session-start call
-failed, or the plugin was installed mid-session), the next hook lazily starts
-one and telemetry resumes — no session ever permanently loses its trace.
-
-## Governance (block & prove)
-
-Enforcement is off by default. Enable built-in safety rules (`rm -rf`,
-`curl | sh`, secret writes) and/or your own policy file:
-
-```bash
-export FACT0_CC_ENFORCE=1                      # built-in safety defaults
-export FACT0_CC_POLICY_FILE=path/to/policy.json # your rules
-```
-
-Policy rules are `{match, tool, action, reason}` — a regex tested against the
-tool input. A matching `deny` blocks the tool call before it runs, and every
-decision (allow or deny) is recorded as a `POLICY_EVALUATION` span in the
-tamper-evident chain. Governance fails open: a bad policy file can never wedge
-a session — the failure is recorded instead.
-
-Verify the chain at any time:
-
-```bash
-fact0-cc verify
-```
-
-## Configuration
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `FACT0_API_KEY` | — (required) | Authenticates the collector. |
-| `FACT0_BASE_URL` | `https://api.fact0.io` | Self-hosted / staging override. |
-| `FACT0_CC_ACTOR_ID` | OS user | Human actor identity for audit events. |
-| `FACT0_CC_ACTOR_EMAIL` | — | Human actor email (e.g. git email). |
-| `FACT0_CC_CAPTURE_MODE` | `metadata` | `hash` \| `metadata` \| `raw` — see Privacy model. |
-| `FACT0_CC_ENFORCE` | off | Enable built-in governance safety rules. |
-| `FACT0_CC_POLICY_FILE` | — | Path to a custom policy JSON. |
-| `FACT0_CC_DISABLED` | off | Disable the collector entirely. |
-| `FACT0_CC_STATE_DIR` | `~/.fact0/cc` | Local state (session mapping, dead-letter queue). |
-
-## Agentless mode
-
-For CI or locked-down hosts where shipping a binary isn't possible, the plugin
-can POST events straight from Claude Code to
-`POST /v1/integrations/claude-code` using HTTP hooks. Note that raw payloads
-leave the machine before local redaction in this mode — prefer the default
-binary collector for secret-bearing environments.
-
-## Related
-
-- [Audit API](/api-reference) - the batch ingest and verify endpoints
-- [OpenTelemetry](/integrations/opentelemetry) - complementary cost/token metrics feed
+Verification uses the same authenticated Fact0 audit API. It checks recorded chain consistency, not complete Claude capture. See [verification limits](/guides/verification).

@@ -8,7 +8,7 @@
     {
       "name": "fact0-claude-code",
       "source": "./claude-code-plugin",
-      "description": "Stream every Claude Code session into Fact0 as tamper-evident audit + telemetry."
+      "description": "Record Claude Code sessions in self-hosted Fact0 with a durable local delivery queue."
     }
   ]
 }

@@ -22,7 +22,7 @@ import { Fact0Client } from "@fact0/sdk";
 import { Agent } from "@mastra/core/agent";
 import { openai } from "@ai-sdk/openai";
 
-const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY!, baseUrl: process.env.FACT0_BASE_URL ?? "http://localhost:8000" });
 
 const agent = new Agent({
   name: "support",

@@ -31,6 +31,6 @@ echo
 echo "==> Required environment (set before / while running Claude Code):"
 echo
 echo "     export FACT0_API_KEY=...            # required: your Fact0 API key"
-echo "     export FACT0_BASE_URL=...           # optional: defaults to https://api.fact0.io"
+echo "     export FACT0_BASE_URL=http://localhost:8000"
 echo
-echo "==> Done. Every Claude Code session will now stream events to Fact0."
+echo "==> Done. Raw capture is the default. Restart Claude Code after setting the environment."

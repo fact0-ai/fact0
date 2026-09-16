@@ -1,76 +1,12 @@
 ---
-title: Security
-description: API keys, scopes, rotation, and share links.
+title: "Security and capture"
+description: "Protect local content and understand the trust boundary."
 ---
 
-# Security
+Fact0 requires owner authentication for the dashboard and API keys or an owner JWT for ingestion/read APIs. Initial setup is performed through a trusted local command; public registration and invitations are disabled.
 
-## API keys
+The default Claude profile captures full values available from supported hooks and supported transcript records. The API does not redact this profile. Prompts, source code, tool arguments, results and errors may contain sensitive information. They are stored in your PostgreSQL instance and, during failed delivery, in the collector's owner-readable local spool. Choose `hash` or `metadata` capture explicitly when needed.
 
-| Prefix | Usage |
-|--------|-------|
-| `f0_live_*` | Production API keys |
+Protect `.env`, database volumes, backups and collector state. Full content belongs in the authenticated inspector, not ordinary server logs. Use TLS for remote connections and keep database and private service ports inaccessible externally.
 
-Keys are bound to an organization tenant. Raw secrets are shown **once** at creation; only a SHA-256 hash is stored server-side.
-
-## Scopes
-
-| Scope | Permissions |
-|-------|-------------|
-| `read` | List, verify, export, stream |
-| `write` | Ingest events (`POST /v1/events*`) |
-
-Write routes reject read-only keys with `403 forbidden`.
-
-## Authentication surfaces
-
-| Surface | Auth mechanism |
-|---------|----------------|
-| Audit ingest | Bearer API key (write) |
-| Audit reads | API key **or** dashboard JWT (DualAuth) |
-| SSE stream | API key **or** single-use SSE ticket |
-| Share links | Share bearer token |
-| Dashboard `/v1/me/*` | Better Auth JWT |
-| Telemetry `/api/v1/*` | Bearer API key (write for ingest; read for queries) |
-
-```mermaid
-graph TD
-    subgraph Clients [Clients]
-        Agent[AI Agent / Service]
-        Browser[Dashboard / User Browser]
-        Auditor[External CISO / Security Auditor]
-    end
-    
-    subgraph Fact0 API [Fact0 API Gateway]
-        AuthGate[DualAuth Verification Engine]
-        IngestService[Ingest pipeline]
-        QueryService[Query & Verification pipeline]
-    end
-    
-    Agent -->|1. Bearer Token: f0_live_... <br/> write scope| AuthGate
-    Browser -->|2. Better Auth JWT <br/> session scope| AuthGate
-    Auditor -->|3. Share Ticket <br/> read-only scope| AuthGate
-    
-    AuthGate -->|Ingest Events| IngestService
-    AuthGate -->|Verify & Export| QueryService
-    
-    classDef default fill:#18181b,stroke:#3f3f46,stroke-width:1px,color:#fafafa;
-    classDef gateway fill:#1e3a8a,stroke:#3b82f6,color:#fafafa;
-    classDef client fill:#27272a,stroke:#71717a,color:#fafafa;
-    class AuthGate gateway;
-    class Agent,Browser,Auditor client;
-```
-
-## Key rotation
-
-1. Create a new key in **Settings → API Keys**
-2. Deploy the new key to your agents
-3. Revoke the old key - revoked keys return `401` immediately
-
-## Share links
-
-Read-only public share links allow secure access to a specific subset of audit events. The generated link URL embeds a secure one-time secret token (e.g., `shr_ULID_SECRET`) which authorizes the auditor's browser to fetch the compliant views. Access can be revoked at any time from the dashboard.
-
-## Data retention
-
-Retention sweeps are plan-scoped. See dashboard **Settings → Plan** for your organization's retention window.
+Hash chains and signatures have a limited trust model; see [verification](/guides/verification). Report vulnerabilities privately as described in the repository's SECURITY.md. Maintenance and response times are best effort.

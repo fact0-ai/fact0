@@ -20,11 +20,12 @@ pip install fact0-sdk google-adk
 Register `before_model_callback` / `after_model_callback` to emit spans.
 
 ```python
+import os
 import fact0
 from google.adk.agents import LlmAgent
 from google.adk.runners import Runner
 
-client = fact0.Client(api_key="f0_live_...")
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 
 def before_model(ctx, request):
     ex = client.telemetry.current_execution()

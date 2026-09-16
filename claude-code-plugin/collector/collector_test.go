@@ -32,9 +32,20 @@ func newMockBackend(t *testing.T) (*httptest.Server, *[]capturedReq, *sync.Mutex
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		// StartExecution callers read an id back; a generic object is harmless
-		// for the batch/spans endpoints too.
-		_, _ = w.Write([]byte(`{"id":"exec_mock_123"}`))
+		var data map[string]json.RawMessage
+		_ = json.Unmarshal(body, &data)
+		result := map[string]any{"id": "exec_mock_123"}
+		if r.URL.Path == "/v1/events/batch" {
+			var events []json.RawMessage
+			_ = json.Unmarshal(data["events"], &events)
+			result = map[string]any{"accepted": len(events), "rejected": 0, "errors": []any{}}
+		}
+		if strings.HasSuffix(r.URL.Path, "/spans") {
+			var spans []json.RawMessage
+			_ = json.Unmarshal(data["spans"], &spans)
+			result = map[string]any{"accepted_count": len(spans), "errors": []any{}}
+		}
+		_ = json.NewEncoder(w).Encode(result)
 	}))
 	t.Cleanup(srv.Close)
 	return srv, &reqs, &mu

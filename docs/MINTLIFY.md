@@ -1,45 +1,22 @@
-# Mintlify setup (docs.fact0.io)
+# Publishing the documentation with Mintlify
 
-This site lives in the **`docs/`** folder of the [fact0-ai/fact0](https://github.com/fact0-ai/fact0) monorepo.
+This file is for documentation maintainers. Running a self-hosted Fact0 installation does not require a Mintlify account or a documentation deployment.
 
-## Connect GitHub
+The site source is the `docs/` directory of [fact0-ai/fact0](https://github.com/fact0-ai/fact0). In the Mintlify dashboard, connect that repository, select the intended release branch, enable monorepo mode, and set the documentation directory to `docs` (where `docs.json` lives). The maintained public documentation domain is `docs.fact0.io`.
 
-1. Open [Mintlify dashboard](https://dashboard.mintlify.com).
-2. Add or edit the Fact0 project.
-3. Connect repository: **`fact0-ai/fact0`**.
-4. Enable **monorepo** mode and set **docs directory** to **`docs`** (where `docs.json` lives).
-5. Production domain: **`docs.fact0.io`** (unchanged from prior `fact0-docs` repo).
+## Preview and validate
 
-## Local preview
+Use Node 22 and run from the repository root:
 
-Requires Node **20 or 22** (LTS). Node 25+ is not supported by Mintlify.
-
-```bash
+```sh
+bash scripts/sync-openapi.sh
+python3 docs/scripts/validate-docs.py
 cd docs
-export PATH="/opt/homebrew/opt/node@22/bin:$PATH"   # if `node -v` shows 25+
-npx mintlify dev
+npx mintlify dev --port 3001
 ```
 
-Open http://localhost:3000
+The CLI prints the preview URL. Install PyYAML for the validator if needed. Port 3001 avoids the application dashboard's default port.
 
-## OpenAPI reference
+The canonical REST specifications are `openapi/audit.v1.yaml` and `openapi/telemetry.v1.yaml` at the repository root. The sync script copies them into `docs/openapi/`, which is referenced by `docs.json`. There is no separate application checkout to locate.
 
-Specs are copied from the app monorepo:
-
-```bash
-# from repo root
-bash scripts/sync-openapi-from-app.sh
-```
-
-Paths in `docs.json` are relative to `docs/`:
-
-- `openapi/audit.v1.yaml`
-- `openapi/telemetry.v1.yaml`
-
-## CI validation
-
-`.github/workflows/docs-validate.yml` runs on every PR touching `docs/**`.
-
-## Migration from fact0-ai/fact0-docs
-
-After verifying preview deploys from this repo, disconnect the old `fact0-ai/fact0-docs` GitHub integration in Mintlify and archive that repository.
+The repository workflows validate documentation paths, JSON, YAML and generated references. Check links and the local preview before publishing a documentation update. Publishing documentation does not deploy the Fact0 application or create owner accounts.

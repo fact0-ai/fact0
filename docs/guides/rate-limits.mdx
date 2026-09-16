@@ -19,7 +19,7 @@ The SDK automatically retries on 429 and 5xx with exponential backoff (default 3
 |--------|----------|
 | 429 | Retry with backoff; respect `Retry-After` |
 | 500, 502, 503, 504 | Retry with backoff |
-| 400, 401, 403, 409 | Fail immediately |
+| 400, 401, 403, 409, 413 | Fail immediately; repair input/configuration before retry |
 
 ## Batching defaults
 
@@ -34,3 +34,7 @@ Batching reduces request volume and helps stay under rate limits.
 ## Metrics
 
 The platform exposes `fact0_ratelimit_dropped_total` on `/metrics` for observability.
+
+## Request and capture limits
+
+The core limits encoded request bodies to 4 MiB. HTTP 200 may include per-item errors; inspect accepted/rejected counts. The Claude collector splits batches and retains permanent oversized failures locally within its configured spool limit. The core uses synchronous ingestion; receipt polling is unavailable.

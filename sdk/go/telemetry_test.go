@@ -21,6 +21,7 @@ func TestTelemetryStartExecution(t *testing.T) {
 		AgentID:   "agent_1",
 		AgentName: "demo-agent",
 		Trigger:   "manual",
+		StartedAt: "2026-09-16T07:51:27.123456Z",
 	})
 	if err != nil {
 		t.Fatalf("start execution: %v", err)
@@ -36,6 +37,9 @@ func TestTelemetryStartExecution(t *testing.T) {
 	}
 	if req.Body["agent_id"] != "agent_1" {
 		t.Fatalf("unexpected body: %#v", req.Body)
+	}
+	if req.Body["started_at"] != "2026-09-16T07:51:27.123456Z" {
+		t.Fatalf("captured start time missing: %#v", req.Body)
 	}
 }
 
@@ -59,6 +63,22 @@ func TestTelemetryEndExecution(t *testing.T) {
 	}
 	if req.Body["status"] != "success" {
 		t.Fatalf("unexpected status: %#v", req.Body["status"])
+	}
+	if _, ok := req.Body["ended_at"]; ok {
+		t.Fatal("legacy end request unexpectedly supplied a capture time")
+	}
+}
+
+func TestTelemetryEndExecutionAt(t *testing.T) {
+	ms := newMockServer(t)
+	c := fact0.NewClient(fact0.Config{BaseURL: ms.URL, APIKey: "alk_live_test"})
+	endedAt := "2026-09-16T07:51:51.123456Z"
+	if _, err := c.Telemetry.EndExecutionAt(context.Background(), "exec_offline", "COMPLETED", endedAt); err != nil {
+		t.Fatal(err)
+	}
+	req := ms.received()[0]
+	if req.Method != "PUT" || req.Path != "/api/v1/executions/exec_offline/end" || req.Body["ended_at"] != endedAt || req.Body["status"] != "COMPLETED" {
+		t.Fatalf("capture time not preserved: %+v", req)
 	}
 }
 

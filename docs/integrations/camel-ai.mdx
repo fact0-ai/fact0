@@ -20,10 +20,11 @@ pip install fact0-sdk camel-ai
 One execution per role-play session, one span per turn.
 
 ```python
+import os
 import fact0
 from camel.societies import RolePlaying
 
-client = fact0.Client(api_key="f0_live_...")
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 
 session = RolePlaying(
     assistant_role_name="Engineer",

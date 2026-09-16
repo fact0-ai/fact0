@@ -9,6 +9,8 @@ type StartExecutionRequest struct {
 	Trigger        string            `json:"trigger,omitempty"`
 	Metadata       map[string]string `json:"metadata,omitempty"`
 	IdempotencyKey string            `json:"idempotency_key,omitempty"`
+	// StartedAt is an optional RFC3339 capture time; omit to use server time.
+	StartedAt string `json:"started_at,omitempty"`
 }
 
 // IngestSpansRequest represents span payload for ingestion.
@@ -23,18 +25,18 @@ type IngestEventsRequest struct {
 
 // ModelInvocationDetail represents model details in a span.
 type ModelInvocationDetail struct {
-	ModelName        string   `json:"model_name"`
-	ModelProvider    string   `json:"model_provider"`
-	PromptTokens     int32    `json:"prompt_tokens,omitempty"`
-	CompletionTokens int32    `json:"completion_tokens,omitempty"`
-	TotalTokens      int32    `json:"total_tokens,omitempty"`
-	LatencyMs        int64    `json:"latency_ms,omitempty"`
-	Temperature      float64  `json:"temperature,omitempty"`
-	SessionID        string   `json:"session_id,omitempty"`
-	TurnSequence     int32    `json:"turn_sequence,omitempty"`
-	PromptName       string   `json:"prompt_name,omitempty"`
-	PromptVersion    int32    `json:"prompt_version,omitempty"`
-	CostUSD          float64  `json:"cost_usd,omitempty"`
+	ModelName        string  `json:"model_name"`
+	ModelProvider    string  `json:"model_provider"`
+	PromptTokens     int32   `json:"prompt_tokens,omitempty"`
+	CompletionTokens int32   `json:"completion_tokens,omitempty"`
+	TotalTokens      int32   `json:"total_tokens,omitempty"`
+	LatencyMs        int64   `json:"latency_ms,omitempty"`
+	Temperature      float64 `json:"temperature,omitempty"`
+	SessionID        string  `json:"session_id,omitempty"`
+	TurnSequence     int32   `json:"turn_sequence,omitempty"`
+	PromptName       string  `json:"prompt_name,omitempty"`
+	PromptVersion    int32   `json:"prompt_version,omitempty"`
+	CostUSD          float64 `json:"cost_usd,omitempty"`
 }
 
 // TelemetryClient wraps execution telemetry REST endpoints.
@@ -51,8 +53,18 @@ func (t *TelemetryClient) StartExecution(ctx context.Context, req StartExecution
 
 // EndExecution marks an execution complete.
 func (t *TelemetryClient) EndExecution(ctx context.Context, executionID, status string) (map[string]any, error) {
+	return t.EndExecutionAt(ctx, executionID, status, "")
+}
+
+// EndExecutionAt ends an execution at an RFC3339 capture time. An empty endedAt
+// uses server time. Captured end time must be at or after the execution start.
+func (t *TelemetryClient) EndExecutionAt(ctx context.Context, executionID, status, endedAt string) (map[string]any, error) {
+	req := map[string]string{"status": status}
+	if endedAt != "" {
+		req["ended_at"] = endedAt
+	}
 	var out map[string]any
-	err := t.parent.doJSON(ctx, "PUT", "/api/v1/executions/"+executionID+"/end", map[string]string{"status": status}, &out, true)
+	err := t.parent.doJSON(ctx, "PUT", "/api/v1/executions/"+executionID+"/end", req, &out, true)
 	return out, err
 }
 

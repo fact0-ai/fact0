@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	fact0 "github.com/fact0-ai/fact0/sdk/go"
 )
@@ -39,10 +40,13 @@ func ResourceFromTool(toolName string, toolInput json.RawMessage, mode string) f
 			Type: "shell.command",
 			Name: name,
 		}
-	case toolName == "Edit" || toolName == "Write" || toolName == "MultiEdit" || toolName == "NotebookEdit":
+	case toolName == "Read" || toolName == "Edit" || toolName == "Write" || toolName == "MultiEdit" || toolName == "NotebookEdit":
 		path := stringField(fields, "file_path")
 		if path == "" {
 			path = stringField(fields, "notebook_path")
+		}
+		if path == "" {
+			return fact0.Resource{ID: toolName, Type: "claude_code.tool", Name: toolName}
 		}
 		if hashOnly {
 			// Hash the path rather than shipping the absolute filesystem path.
@@ -85,6 +89,12 @@ func stringField(m map[string]any, key string) string {
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	if n < 0 {
+		return ""
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n]
 }

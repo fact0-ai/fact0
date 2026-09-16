@@ -3,25 +3,39 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 )
 
-// TurnStats summarizes the assistant's side of the just-finished turn, read
-// from the Claude Code transcript JSONL. The transcript format is internal
-// and unstable, so parsing is strictly best-effort: any surprise yields a
-// zero-value stat rather than an error.
-type TurnStats struct {
-	ResponseText string // final assistant text of the turn ("" if none)
-	InputTokens  int64  // effective context of the last call (incl. cache)
-	OutputTokens int64  // summed output tokens across the turn's messages
-	Model        string
+type AssistantMessage struct {
+	ID        string          `json:"id"`
+	Source    string          `json:"source,omitempty"`
+	UUID      string          `json:"uuid,omitempty"`
+	Timestamp string          `json:"timestamp,omitempty"`
+	Model     string          `json:"model,omitempty"`
+	Content   json.RawMessage `json:"content"`
 }
 
-// transcriptLine is the subset of a transcript JSONL line we care about.
+// TurnStats preserves the ordered supported transcript content, not merely
+// the final answer. Availability is always explicit, including missing files.
+type TurnStats struct {
+	TurnID        string             `json:"turn_id,omitempty"`
+	ResponseText  string             `json:"response_text"`
+	InputTokens   int64              `json:"input_tokens"`
+	OutputTokens  int64              `json:"output_tokens"`
+	Model         string             `json:"model,omitempty"`
+	Messages      []AssistantMessage `json:"messages,omitempty"`
+	CaptureStatus string             `json:"capture_status"`
+	CaptureReason string             `json:"capture_reason,omitempty"`
+}
+
 type transcriptLine struct {
-	Type    string `json:"type"`
-	Message struct {
+	Type      string `json:"type"`
+	UUID      string `json:"uuid"`
+	Timestamp string `json:"timestamp"`
+	IsMeta    bool   `json:"isMeta"`
+	Message   struct {
 		ID      string          `json:"id"`
 		Model   string          `json:"model"`
 		Content json.RawMessage `json:"content"`
@@ -34,120 +48,186 @@ type transcriptLine struct {
 	} `json:"message"`
 }
 
-// contentBlock is one element of an assistant/user content array.
 type contentBlock struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
 }
 
-// maxTranscriptBytes caps how much transcript is read; long sessions are
-// read from the tail, which always contains the latest turn.
-const maxTranscriptBytes = 8 << 20 // 8 MiB
+const maxTranscriptBytes = 256 << 20
 
-// ReadTurnFromTranscript extracts stats for the most recent turn: everything
-// after the last real user prompt (a user line whose content is a plain
-// string — tool_result lines are also type "user" but carry arrays).
-// Returns (stats, true) when at least one assistant message was found.
+func realUserPrompt(raw json.RawMessage) bool {
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return true
+	}
+	var blocks []contentBlock
+	if json.Unmarshal(raw, &blocks) != nil {
+		return false
+	}
+	hasText := false
+	for _, b := range blocks {
+		if b.Type == "tool_result" {
+			return false
+		}
+		if b.Type != "" {
+			hasText = true
+		}
+	}
+	return hasText
+}
+
 func ReadTurnFromTranscript(path string) (TurnStats, bool) {
+	return ReadTurnFromTranscriptTurn(path, "")
+}
+
+// ReadTurnFromTranscriptTurn selects one captured user turn even if later
+// prompts have since been appended to the same transcript.
+func ReadTurnFromTranscriptTurn(path, targetTurn string) (TurnStats, bool) {
+	st := TurnStats{CaptureStatus: "unavailable", CaptureReason: "transcript path not supplied"}
 	if path == "" {
-		return TurnStats{}, false
+		return st, false
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return TurnStats{}, false
+		st.CaptureReason = "transcript unreadable: " + err.Error()
+		return st, false
 	}
 	defer f.Close()
-
-	// Seek to the tail of very large transcripts; drop the first (likely
-	// partial) line after seeking.
+	partialReason := ""
 	if info, err := f.Stat(); err == nil && info.Size() > maxTranscriptBytes {
-		if _, err := f.Seek(info.Size()-maxTranscriptBytes, 0); err != nil {
-			return TurnStats{}, false
+		if _, err = f.Seek(info.Size()-maxTranscriptBytes, 0); err != nil {
+			st.CaptureReason = "transcript seek failed: " + err.Error()
+			return st, false
 		}
+		partialReason = "transcript exceeds 256 MiB read window; earlier content unavailable"
 	}
-
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 1<<20), 1<<20)
-
-	// One assistant message spans multiple JSONL lines (one per content
-	// block) with the SAME message id and repeated usage — aggregate by id
-	// so tokens are not double-counted.
-	type msg struct {
+	reader := bufio.NewReader(io.LimitReader(f, maxTranscriptBytes+1))
+	if partialReason != "" {
+		_, _ = reader.ReadBytes('\n')
+	}
+	type usage struct {
 		in, out int64
 		model   string
-		text    strings.Builder
 	}
-	var (
-		order []string
-		byID  = map[string]*msg{}
-	)
-	reset := func() {
-		order = nil
-		byID = map[string]*msg{}
-	}
+	order := []string{}
+	usages := map[string]usage{}
+	seenUUID := map[string]bool{}
+	texts := []string{}
+	for {
+		raw, readErr := reader.ReadBytes('\n')
+		if len(raw) > 0 {
+			var line transcriptLine
+			if err := json.Unmarshal(raw, &line); err != nil {
+				partialReason = "transcript contains malformed or incomplete JSON records"
+			} else {
+				if line.Type == "user" && !line.IsMeta && realUserPrompt(line.Message.Content) {
+					if targetTurn != "" && st.TurnID == targetTurn {
+						break
+					}
+					st.TurnID = line.UUID
+					if st.TurnID == "" {
+						st.TurnID = "prompt-" + Sha256Hex(string(raw))
+					}
 
-	for scanner.Scan() {
-		raw := scanner.Bytes()
-		var line transcriptLine
-		if err := json.Unmarshal(raw, &line); err != nil {
-			continue
-		}
-		switch line.Type {
-		case "user":
-			// A real user prompt has string content; tool results come as
-			// arrays. A new prompt starts a new turn.
-			var s string
-			if err := json.Unmarshal(line.Message.Content, &s); err == nil {
-				reset()
-			}
-		case "assistant":
-			id := line.Message.ID
-			if id == "" {
-				continue
-			}
-			m, ok := byID[id]
-			if !ok {
-				m = &msg{}
-				byID[id] = m
-				order = append(order, id)
-			}
-			u := line.Message.Usage
-			m.in = u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens
-			m.out = u.OutputTokens
-			if line.Message.Model != "" {
-				m.model = line.Message.Model
-			}
-			var blocks []contentBlock
-			if err := json.Unmarshal(line.Message.Content, &blocks); err == nil {
-				for _, b := range blocks {
-					if b.Type == "text" && b.Text != "" {
-						if m.text.Len() > 0 {
-							m.text.WriteString("\n")
+					st.Messages = nil
+					order = nil
+					usages = map[string]usage{}
+					seenUUID = map[string]bool{}
+					texts = nil
+					partialReason = ""
+				}
+				if line.Type == "assistant" && (targetTurn == "" || st.TurnID == targetTurn) {
+					id := line.Message.ID
+					if id == "" {
+						id = line.UUID
+					}
+					if id == "" {
+						partialReason = "assistant record lacks message identity"
+						id = "record-" + Sha256Hex(string(raw))
+					}
+					if _, ok := usages[id]; !ok {
+						order = append(order, id)
+					}
+					u := line.Message.Usage
+					old := usages[id]
+					input := u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens
+					if input == 0 {
+						input = old.in
+					}
+					output := u.OutputTokens
+					if output < old.out {
+						output = old.out
+					}
+					model := line.Message.Model
+					if model == "" {
+						model = old.model
+					}
+					usages[id] = usage{input, output, model}
+					// Repeated snapshots may share a UUID but add content or
+					// update usage. Deduplicate only identical content after
+					// accounting for the latest usage values.
+					recordKey := line.UUID + "|" + Sha256Hex(string(line.Message.Content))
+					if line.UUID != "" && seenUUID[recordKey] {
+						if readErr == io.EOF {
+							break
 						}
-						m.text.WriteString(b.Text)
+						continue
+					}
+					seenUUID[recordKey] = line.UUID != ""
+					content := append(json.RawMessage(nil), line.Message.Content...)
+					if len(content) == 0 {
+						partialReason = "assistant record has no supported content"
+					} else {
+						st.Messages = append(st.Messages, AssistantMessage{ID: id, UUID: line.UUID, Timestamp: line.Timestamp, Model: line.Message.Model, Content: content})
+						var blocks []contentBlock
+						if json.Unmarshal(content, &blocks) == nil {
+							for _, b := range blocks {
+								if b.Type == "text" {
+									texts = append(texts, b.Text)
+								}
+							}
+						} else {
+							var text string
+							if json.Unmarshal(content, &text) == nil {
+								texts = append(texts, text)
+							} else {
+								partialReason = "assistant content format unavailable"
+							}
+						}
 					}
 				}
 			}
 		}
+		if readErr != nil {
+			if readErr != io.EOF {
+				partialReason = "transcript read failed: " + readErr.Error()
+			}
+			break
+		}
 	}
-
-	if len(order) == 0 {
-		return TurnStats{}, false
+	if len(st.Messages) == 0 {
+		st.CaptureReason = "no assistant messages found for the latest turn"
+		if partialReason != "" {
+			st.CaptureReason = partialReason
+		}
+		return st, false
 	}
-
-	var st TurnStats
 	for _, id := range order {
-		m := byID[id]
-		st.OutputTokens += m.out
-		if m.in > 0 {
-			st.InputTokens = m.in // last call's effective context wins
+		u := usages[id]
+		st.OutputTokens += u.out
+		if u.in > 0 {
+			st.InputTokens = u.in
 		}
-		if m.model != "" {
-			st.Model = m.model
+		if u.model != "" {
+			st.Model = u.model
 		}
-		if t := m.text.String(); t != "" {
-			st.ResponseText = t // last message with text wins
-		}
+	}
+	st.ResponseText = strings.Join(texts, "\n")
+	st.CaptureStatus = "complete"
+	st.CaptureReason = ""
+	if partialReason != "" {
+		st.CaptureStatus = "partial"
+		st.CaptureReason = partialReason
 	}
 	return st, true
 }

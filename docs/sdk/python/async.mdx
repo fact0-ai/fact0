@@ -9,10 +9,11 @@ For FastAPI, asyncio agents, and other async runtimes:
 
 ```python
 import asyncio
+import os
 import fact0
 
 async def main():
-    async with fact0.AsyncClient(api_key="f0_live_...") as client:
+    async with fact0.AsyncClient(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000')) as client:
         await client.audit.log(
             actor={"id": "agent-1", "type": "agent"},
             action="tool.invoke",
@@ -39,14 +40,15 @@ Telemetry methods are also available on `AsyncClient.telemetry`.
 
 ## Async Telemetry
 
-When using `AsyncClient`, telemetry execution and span context managers are asynchronous and run completely non-blocking in the background:
+When using `AsyncClient`, telemetry execution and span context managers use awaited asynchronous I/O. The core API commits ingestion synchronously; SDK buffering is a separate client behavior:
 
 ```python
 import asyncio
+import os
 import fact0
 
 async def main():
-    async with fact0.AsyncClient(api_key="f0_live_...") as client:
+    async with fact0.AsyncClient(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000')) as client:
         # Asynchronous execution tracing context manager
         async with client.telemetry.execution(agent_id="research-bot") as ex:
             # Asynchronous span context manager
@@ -62,6 +64,7 @@ asyncio.run(main())
 ```python
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+import os
 import fact0
 
 audit_client: fact0.AsyncClient | None = None
@@ -69,7 +72,7 @@ audit_client: fact0.AsyncClient | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global audit_client
-    audit_client = fact0.AsyncClient(api_key="...")
+    audit_client = fact0.AsyncClient(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
     yield
     await audit_client.close()
 

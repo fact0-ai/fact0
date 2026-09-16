@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package fact0.v1;
+
+option go_package = "github.com/fact0-ai/fact0/gen/go/fact0/v1;fact0v1";
+
+import "fact0/v1/execution.proto";
+import "google/protobuf/timestamp.proto";
+
+// ─── Query Service ──────────────────────────────────────────
+
+// QueryService provides read access to execution data.
+service QueryService {
+  // GetExecution retrieves a single execution with its metadata.
+  rpc GetExecution(GetExecutionRequest) returns (GetExecutionResponse);
+
+  // ListExecutions returns paginated execution summaries.
+  rpc ListExecutions(ListExecutionsRequest) returns (ListExecutionsResponse);
+
+  // GetSpan retrieves a single span with full details.
+  rpc GetSpan(GetSpanRequest) returns (GetSpanResponse);
+
+  // ListSpans returns all spans for an execution.
+  rpc ListSpans(ListSpansRequest) returns (ListSpansResponse);
+
+  // GetExecutionDAG returns the reconstructed DAG for an execution.
+  rpc GetExecutionDAG(GetExecutionDAGRequest) returns (GetExecutionDAGResponse);
+
+  // GetSpanEvents returns all events for a specific span.
+  rpc GetSpanEvents(GetSpanEventsRequest) returns (GetSpanEventsResponse);
+}
+
+// ─── Request/Response Messages ──────────────────────────────
+
+message GetExecutionRequest {
+  string execution_id = 1;
+}
+
+message GetExecutionResponse {
+  Execution execution = 1;
+  int32 span_count = 2;
+  int64 duration_ms = 3;
+}
+
+message ListExecutionsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string agent_id = 3; // optional filter
+  ExecutionStatus status = 4; // optional filter
+  google.protobuf.Timestamp started_after = 5;
+  google.protobuf.Timestamp started_before = 6;
+}
+
+message ListExecutionsResponse {
+  repeated ExecutionSummary executions = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// ExecutionSummary is a lightweight view of an execution for listings.
+message ExecutionSummary {
+  string id = 1;
+  string agent_id = 2;
+  string agent_name = 3;
+  ExecutionStatus status = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp ended_at = 6;
+  int32 span_count = 7;
+  int64 duration_ms = 8;
+  string trigger = 9;
+}
+
+message GetSpanRequest {
+  string span_id = 1;
+}
+
+message GetSpanResponse {
+  Span span = 1;
+  repeated ExecutionEvent events = 2;
+}
+
+message ListSpansRequest {
+  string execution_id = 1;
+  SpanType span_type = 2; // optional filter
+  string parent_span_id = 3; // optional: get children of specific span
+}
+
+message ListSpansResponse {
+  repeated Span spans = 1;
+}
+
+message GetExecutionDAGRequest {
+  string execution_id = 1;
+}
+
+message GetExecutionDAGResponse {
+  repeated DAGNode nodes = 1;
+  repeated DAGEdge edges = 2;
+}
+
+// DAGNode represents a span as a node in the execution DAG.
+message DAGNode {
+  string id = 1;
+  string span_id = 2;
+  string name = 3;
+  SpanType span_type = 4;
+  SpanStatus status = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp ended_at = 7;
+  int64 duration_ms = 8;
+  map<string, string> metadata = 9;
+}
+
+// DAGEdge represents a relationship between two spans.
+message DAGEdge {
+  string source_span_id = 1;
+  string target_span_id = 2;
+  string edge_type = 3; // "parent_child" or "causal"
+}
+
+message GetSpanEventsRequest {
+  string span_id = 1;
+}
+
+message GetSpanEventsResponse {
+  repeated ExecutionEvent events = 1;
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -46,7 +47,10 @@ func redactValue(key string, v any, mode string) any {
 		case mode == CaptureRawMode:
 			return t
 		case mode == CaptureMetadata && locatorKeys[key]:
-			return truncate(t, locatorPreviewLen)
+			if len(t) > locatorPreviewLen {
+				return map[string]any{"preview": truncate(t, locatorPreviewLen), "sha256": Sha256Hex(t), "len": len(t), "truncated": true}
+			}
+			return t
 		}
 		return map[string]any{
 			"sha256": Sha256Hex(t),
@@ -76,7 +80,9 @@ func RedactInput(raw json.RawMessage, mode string) map[string]any {
 		return map[string]any{}
 	}
 	var decoded any
-	if err := json.Unmarshal(raw, &decoded); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if err := dec.Decode(&decoded); err != nil {
 		// Not valid JSON: treat the bytes as an opaque string value.
 		return map[string]any{"value": redactValue("", string(raw), mode)}
 	}

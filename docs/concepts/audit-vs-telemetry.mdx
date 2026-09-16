@@ -1,6 +1,6 @@
 ---
 title: Audit vs telemetry
-description: Two pipelines - compliance ledger and execution observability.
+description: Two complementary records for audit history and execution inspection.
 ---
 
 # Audit vs telemetry
@@ -8,7 +8,7 @@ description: Two pipelines - compliance ledger and execution observability.
 Fact0 has **two parallel pipelines**:
 
 ```
-Audit log   →  "Did it happen? Who? When?"     (compliance)
+Audit log   →  "Did it happen? Who? When?"     (recorded actions)
 Telemetry   →  "How did it happen? Why?"       (debugging)
 ```
 
@@ -24,9 +24,9 @@ graph TD
         Exec -->|4. End Execution| ExecEnd[COMPLETED / FAILED Status]
     end
     
-    subgraph Audit Pipeline [Audit Pipeline: Compliance]
-        Agent -->|3. High-Value Action| AuditLog[Cryptographic Audit Log]
-        AuditLog -->|Immutable Chain| Ledger[SHA-256 Hash Chain]
+    subgraph Audit Pipeline [Audit Pipeline: Recorded Actions]
+        Agent -->|3. High-Value Action| AuditLog[Recorded Audit Events]
+        AuditLog -->|Hash Links| Ledger[SHA-256 Hash Chain]
     end
     
     Spans -.->|Correlation: metadata.execution_id| AuditLog
@@ -41,28 +41,28 @@ graph TD
 
 | Dimension | Audit Log | Execution Telemetry |
 | :--- | :--- | :--- |
-| **Purpose** | Compliance, Security Proof, GRC Audits | Debugging, Traceability, Replay, Performance |
-| **Immutability** | Cryptographically chained (SHA-256) | Append-only tracing (no hash chain) |
-| **Ingest API** | `/v1/events` (Sync or Async) | `/api/v1/executions` (Async spans) |
-| **Target Audience** | Enterprise CISOs, Security Teams | AI Developers, System Operators |
+| **Purpose** | Recorded actions, audit searches, integrity checks | Debugging, traceability, replay, timing |
+| **Stored history** | SHA-256 links detect changes relative to the stored chain | Execution/span state and lifecycle records, without an audit hash chain |
+| **Ingest API** | `/v1/events` and `/v1/events/batch` | `/api/v1/executions` and its span/event routes |
+| **Typical use** | Investigate captured actions | Inspect captured runs |
 | **Key Metrics** | Access violations, spending bounds, approvals | Latency, token counts, model outputs, tool execution |
 
 ## Correlation Best Practice
 
-When executing complex multi-agent steps, always include the telemetry `execution_id` inside the audit event's `metadata` dictionary. This enables auditors to verify that a specific action occurred (via the audit chain) and developers to inspect *how* it happened (via the execution DAG).
+When executing complex multi-agent steps, always include the telemetry `execution_id` inside the audit event's `metadata` dictionary. This connects an audit record to its execution DAG. Verification checks the stored record and its chain; it does not establish that the source action happened exactly as reported.
 
 ## Audit log
 
 - **Endpoints:** `/v1/events`, `/v1/events/batch`
 - **Storage:** `audit_events` - SHA-256 hash chain per tenant
 - **Auth:** `f0_live_*` API keys (read/write scopes)
-- **Use for:** security evidence, tamper detection, regulator exports
+- **Use for:** recorded history, integrity checks and signed exports
 
 ## Execution telemetry
 
 - **Endpoints:** `/api/v1/executions/*`
 - **Storage:** `executions`, `spans`, `execution_events`
-- **Auth:** `f0_live_*` API keys (same as audit log on Fact0 Cloud)
+- **Auth:** `f0_live_*` API keys (same local instance keys as the audit log)
 - **Use for:** DAG visualization, replay, debugging non-deterministic agents
 
 ## Span kinds (telemetry)
@@ -87,5 +87,7 @@ When executing complex multi-agent steps, always include the telemetry `executio
   "metadata": {}
 }
 ```
+
+The core commits ingestion synchronously. SDK-side batching is separate from server-side asynchronous ingest. A policy-evaluation span records a decision made by your own agent; it does not enable Fact0 enforcement.
 
 See [Event schema](/concepts/events) and [Executions](/concepts/executions).

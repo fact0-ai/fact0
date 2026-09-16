@@ -20,7 +20,7 @@ import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { Fact0Client } from "@fact0/sdk";
 
-const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
+const lf = new Fact0Client({ apiKey: process.env.FACT0_API_KEY!, baseUrl: process.env.FACT0_BASE_URL ?? "http://localhost:8000" });
 
 export async function POST(req: Request) {
   const { prompt, userId } = await req.json();

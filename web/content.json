@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "title": {
+      "default": "Fact0 \u2014 Experimental agent audit and replay",
+      "template": "%s | Fact0"
+    },
+    "description": "Self-hosted audit history and execution replay for Python agents and Claude Code. Inspect captured prompts, tool inputs, outputs and assistant messages.",
+    "ogImage": "/og-image.svg"
+  },
+  "brand": {
+    "siteName": "Fact0",
+    "logoText": "Fact0"
+  }
+}

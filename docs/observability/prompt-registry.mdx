@@ -35,7 +35,7 @@ Go to **Observability → Prompt Registry** and click **Register Prompt**. Fill 
 ### Via API
 
 ```bash
-curl -X POST https://api.fact0.io/v1/me/prompts \
+curl -X POST http://localhost:8000/v1/me/prompts \
   -H "Authorization: Bearer $FACT0_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -53,7 +53,7 @@ Each call creates a **new version**. The version number increments automatically
 ## Fetching a prompt at runtime
 
 ```bash
-GET https://api.fact0.io/v1/me/prompts/{id}
+GET http://localhost:8000/v1/me/prompts/{id}
 ```
 
 ```python
@@ -61,7 +61,7 @@ import fact0, os, requests
 
 # Fetch the latest version of a prompt by its ID
 resp = requests.get(
-    f"https://api.fact0.io/v1/me/prompts/{prompt_id}",
+    f"http://localhost:8000/v1/me/prompts/{prompt_id}",
     headers={"Authorization": f"Bearer {os.environ['FACT0_API_KEY']}"},
 )
 prompt = resp.json()
@@ -73,7 +73,7 @@ system_prompt = prompt["template"].replace("{{date}}", today).replace("{{query}}
 To list all prompts and find the one you want by name:
 
 ```bash
-GET https://api.fact0.io/v1/me/prompts
+GET http://localhost:8000/v1/me/prompts
 ```
 
 ---

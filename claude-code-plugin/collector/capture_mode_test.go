@@ -26,11 +26,11 @@ func TestCaptureModeResolution(t *testing.T) {
 	cases := []struct {
 		name, mode, legacyRaw, want string
 	}{
-		{"default is metadata", "", "", CaptureMetadata},
+		{"default is raw", "", "", CaptureRawMode},
 		{"legacy raw flag", "", "1", CaptureRawMode},
 		{"explicit hash beats legacy", "hash", "1", CaptureHash},
 		{"explicit raw", "raw", "", CaptureRawMode},
-		{"invalid falls back to metadata", "everything", "1", CaptureMetadata},
+		{"invalid falls back to raw", "everything", "1", CaptureRawMode},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -14,6 +14,7 @@ pip install fact0-sdk fastapi
 ## Async client with lifespan
 
 ```python
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import fact0
@@ -23,7 +24,7 @@ audit: fact0.AsyncClient | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global audit
-    audit = fact0.AsyncClient(api_key="f0_live_...")
+    audit = fact0.AsyncClient(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
     yield
     await audit.close()
 

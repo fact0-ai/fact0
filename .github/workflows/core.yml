@@ -1,0 +1,100 @@
+name: Core validation
+
+on:
+  pull_request:
+  push:
+    branches: [main, codex/oss-core-release]
+    tags: ["core/v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: fact0
+          POSTGRES_PASSWORD: fact0-ci-local
+          POSTGRES_DB: fact0_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fact0 -d fact0_test"
+          --health-interval 3s --health-timeout 3s --health-retries 30
+    env:
+      FACT0_POSTGRES_DSN: postgres://fact0:fact0-ci-local@localhost:5432/fact0_test?sslmode=disable
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+      - run: go run ./fact0-migrate
+      - run: go run ./fact0-migrate
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npx tsc --noEmit
+      - run: npm run build
+
+  sdk-and-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e './sdk/python[dev,langchain]' pyyaml cryptography
+      - run: python -m pytest -q sdk/python/tests
+      - run: python scripts/test_release_tools.py
+      - run: bash scripts/sync-openapi.sh
+      - run: git diff --exit-code -- docs/openapi
+      - run: python docs/scripts/validate-docs.py
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: api/go.sum
+      - run: cd sdk/go && go vet ./... && go test -race ./...
+      - run: cd claude-code-plugin/collector && go vet ./... && go test -race ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: cd sdk/typescript && npm ci && npm test && npm run typecheck && npm run build
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: api/go.sum
+      - run: python3 scripts/init-env.py
+      - run: docker compose up --build -d --wait
+      - run: bash scripts/compose-smoke.sh
+      - if: always()
+        run: docker compose logs --tail=100
+      - if: always()
+        run: docker compose down --volumes

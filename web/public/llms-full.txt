@@ -1,0 +1,9 @@
+# Fact0
+
+Experimental open-source, self-hosted audit history and execution replay for Python agents and Claude Code. One local owner, PostgreSQL storage, no hosted account requirement.
+
+Core: captured prompts/tool inputs/results, assistant text, execution graph/timeline replay, hash-chain verification, API keys. Raw capture may contain sensitive data; partial/unavailable captures are reported. Replay does not rerun inference. Hash verification does not certify capture completeness.
+
+Source and quickstart: https://github.com/fact0-ai/fact0
+Documentation: https://docs.fact0.io
+License: repository LICENSE. No compliance certification or hosted SLA is offered by this experimental release.
