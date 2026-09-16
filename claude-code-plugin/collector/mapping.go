@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -78,10 +81,10 @@ func executionIDFromResponse(resp map[string]any) string {
 }
 
 // startExecution begins an execution trace for a session and returns its id.
-// Not dead-lettered: callers need the returned id immediately, so a failure is
-// surfaced and retried lazily by later hooks via ensureExecution.
-func startExecution(ctx context.Context, client *fact0.Client, in HookInput, trigger string, lazy bool) (string, error) {
+// Failed starts leave the original hook journal pending; retries use its key.
+func startExecution(ctx context.Context, client *fact0.Client, in HookInput, trigger, key string, lazy bool) (string, error) {
 	md := map[string]string{
+		"session_id":      in.SessionID,
 		"cwd":             in.Cwd,
 		"permission_mode": in.PermissionMode,
 		"source":          in.Source,
@@ -97,8 +100,9 @@ func startExecution(ctx context.Context, client *fact0.Client, in HookInput, tri
 	resp, err := client.Telemetry.StartExecution(ctx, fact0.StartExecutionRequest{
 		AgentID:        "claude-code",
 		AgentName:      "Claude Code",
+		StartedAt:      in.Timestamp,
 		Trigger:        trigger,
-		IdempotencyKey: in.SessionID,
+		IdempotencyKey: key,
 		Metadata:       md,
 	})
 	if err != nil {
@@ -107,28 +111,38 @@ func startExecution(ctx context.Context, client *fact0.Client, in HookInput, tri
 	return executionIDFromResponse(resp), nil
 }
 
+// executionKey survives a crash before StartExecution responds: in journal
+// mode it derives from the already persisted hook ID, never a fresh retry ID.
+func executionKey(cfg Config, st *SessionState) string {
+	if st.ExecutionKey == "" {
+		if cfg.transaction != nil {
+			st.ExecutionKey = "cc-" + cfg.transaction.ID
+		} else {
+			st.ExecutionKey = "cc-" + newSpanID()
+		}
+	}
+	return st.ExecutionKey
+}
+
 // ensureExecution returns the session's execution id, lazily starting an
-// execution when none exists yet (SessionStart never fired — e.g. the plugin
-// was installed mid-session — or its start call failed). On failure it returns
-// "" and the caller skips span ingestion; the next hook retries. Hooks run as
-// concurrent processes, so after a lazy start the state is re-read and a
-// concurrently persisted id wins; the losing execution is ended best-effort so
-// no dangling RUNNING row is left behind.
+// execution when none exists yet. The journal keeps failed starts for retry;
+// the worker lock serializes state changes across hook processes.
 func ensureExecution(ctx context.Context, client *fact0.Client, cfg Config, in HookInput, st *SessionState) string {
+	if st.Closed {
+		*st = SessionState{SessionID: in.SessionID, PendingSpans: map[string]SpanStart{}}
+	}
 	if st.ExecutionID != "" {
 		return st.ExecutionID
 	}
 
-	id, err := startExecution(ctx, client, in, "lazy", true)
+	key := executionKey(cfg, st)
+	id, err := startExecution(ctx, client, in, "lazy", key, true)
 	if err != nil || id == "" {
 		logf("lazy execution start failed for session %s: %v", in.SessionID, err)
+		if cfg.transaction != nil {
+			cfg.transaction.Err = fmt.Errorf("execution start unavailable: %v", err)
+		}
 		return ""
-	}
-
-	if fresh, err := LoadState(cfg, in.SessionID); err == nil && fresh.ExecutionID != "" {
-		_, _ = client.Telemetry.EndExecution(ctx, id, "COMPLETED")
-		st.ExecutionID = fresh.ExecutionID
-		return st.ExecutionID
 	}
 
 	st.ExecutionID = id
@@ -141,14 +155,24 @@ func ensureExecution(ctx context.Context, client *fact0.Client, cfg Config, in H
 
 // HandleSessionStart begins a new execution trace and records a session.start event.
 func HandleSessionStart(ctx context.Context, client *fact0.Client, cfg Config, in HookInput) error {
-	execID, err := startExecution(ctx, client, in, in.Source, false)
-	if err != nil {
-		return err
-	}
-
 	st, _ := LoadState(cfg, in.SessionID)
+	if st.Closed {
+		*st = SessionState{SessionID: in.SessionID, PendingSpans: map[string]SpanStart{}}
+	}
+	execID := st.ExecutionID
+	if execID == "" {
+		var err error
+		execID, err = startExecution(ctx, client, in, in.Source, executionKey(cfg, st), false)
+		if err != nil {
+			return err
+		}
+		if execID == "" {
+			return fmt.Errorf("backend omitted execution id")
+		}
+	}
 	st.SessionID = in.SessionID
 	st.ExecutionID = execID
+	st.Closed = false
 	if st.PendingSpans == nil {
 		st.PendingSpans = map[string]SpanStart{}
 	}
@@ -190,7 +214,7 @@ func HandleUserPrompt(ctx context.Context, client *fact0.Client, cfg Config, in 
 	}
 
 	// Open a turn span: tool spans for this prompt nest under it. The span is
-	// recorded in pending state now and ingested as COMPLETED on Stop.
+	// ingested as RUNNING now, before any children, and completed on Stop.
 	st, _ := LoadState(cfg, in.SessionID)
 	if st.SessionID == "" {
 		st.SessionID = in.SessionID
@@ -204,10 +228,26 @@ func HandleUserPrompt(ctx context.Context, client *fact0.Client, cfg Config, in 
 	st.PendingSpans["__turn__"] = SpanStart{
 		SpanID:    turnSpanID,
 		Name:      "turn",
-		StartedAt: nowRFC3339(),
+		StartedAt: hookTime(cfg),
+		Metadata:  map[string]string{"session_id": in.SessionID, "capture_mode": cfg.CaptureMode},
+	}
+	if cfg.CaptureMode != CaptureHash {
+		turn := st.PendingSpans["__turn__"]
+		turn.Metadata["prompt"] = in.Prompt
+		st.PendingSpans["__turn__"] = turn
 	}
 	if err := SaveState(cfg, st); err != nil {
 		return err
+	}
+	if st.ExecutionID != "" {
+		turn := st.PendingSpans["__turn__"]
+		md := map[string]any{"session_id": in.SessionID, "capture_mode": cfg.CaptureMode}
+		if cfg.CaptureMode != CaptureHash {
+			md["prompt"] = in.Prompt
+		}
+		if err := ingestSpans(ctx, client, cfg, st.ExecutionID, []map[string]any{{"id": turn.SpanID, "execution_id": st.ExecutionID, "span_type": "CUSTOM", "name": "turn", "status": "RUNNING", "started_at": turn.StartedAt, "metadata": md}}); err != nil {
+			return err
+		}
 	}
 
 	return auditLog(ctx, client, cfg, fact0.AuditEventInput{
@@ -239,12 +279,36 @@ func HandlePreTool(ctx context.Context, client *fact0.Client, cfg Config, in Hoo
 	if st.PendingSpans == nil {
 		st.PendingSpans = map[string]SpanStart{}
 	}
+	if in.ToolUseID != "" && st.CompletedTools[pendingKey(in)] {
+		return nil
+	}
+	if _, exists := st.PendingSpans[pendingKey(in)]; exists {
+		return nil
+	}
 	st.PendingSpans[pendingKey(in)] = SpanStart{
 		SpanID:    newSpanID(),
 		Name:      in.ToolName,
-		StartedAt: nowRFC3339(),
+		StartedAt: hookTime(cfg),
+		Input:     append(json.RawMessage(nil), in.ToolInput...), ParentSpanID: st.TurnSpanID,
 	}
-	return SaveState(cfg, st)
+	if err := SaveState(cfg, st); err != nil {
+		return err
+	}
+	if cfg.transaction != nil {
+		if ensureExecution(ctx, client, cfg, in, st) == "" {
+			return nil
+		}
+		start := st.PendingSpans[pendingKey(in)]
+		metadata := map[string]string{"tool_input": jsonString(RedactInput(in.ToolInput, cfg.CaptureMode)), "tool_use_id": in.ToolUseID, "session_id": in.SessionID, "capture_mode": cfg.CaptureMode}
+		start.Metadata = metadata
+		st.PendingSpans[pendingKey(in)] = start
+		span := map[string]any{"id": start.SpanID, "execution_id": st.ExecutionID, "span_type": "TOOL_CALL", "name": start.Name, "status": "RUNNING", "started_at": start.StartedAt, "metadata": metadata}
+		if st.TurnSpanID != "" {
+			span["parent_span_id"] = st.TurnSpanID
+		}
+		return ingestSpans(ctx, client, cfg, st.ExecutionID, []map[string]any{span})
+	}
+	return nil
 }
 
 // HandlePostTool completes the pending tool span, ingests it, and logs an
@@ -269,7 +333,9 @@ func toolCallFailed(in HookInput) bool {
 		return true
 	}
 	var resp map[string]any
-	if len(in.ToolResponse) == 0 || json.Unmarshal(in.ToolResponse, &resp) != nil {
+	dec := json.NewDecoder(bytes.NewReader(in.ToolResponse))
+	dec.UseNumber()
+	if len(in.ToolResponse) == 0 || dec.Decode(&resp) != nil {
 		return false
 	}
 	if b, ok := resp["is_error"].(bool); ok && b {
@@ -284,8 +350,10 @@ func toolCallFailed(in HookInput) bool {
 	if s, ok := resp["error"].(string); ok && s != "" {
 		return true
 	}
-	if code, ok := resp["exit_code"].(float64); ok && code != 0 {
-		return true
+	if code, ok := resp["exit_code"].(json.Number); ok {
+		if n, err := code.Float64(); err == nil && n != 0 {
+			return true
+		}
 	}
 	return false
 }
@@ -300,12 +368,27 @@ func handlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 	}
 
 	key := pendingKey(in)
+	if in.ToolUseID != "" && st.CompletedTools[key] {
+		return nil
+	}
 	span, ok := st.PendingSpans[key]
 	if !ok {
 		// No matching pre-tool record; synthesize one so we still emit the span.
-		span = SpanStart{SpanID: newSpanID(), Name: in.ToolName, StartedAt: nowRFC3339()}
+		span = SpanStart{SpanID: newSpanID(), Name: in.ToolName, StartedAt: hookTime(cfg), ParentSpanID: st.TurnSpanID}
+	}
+	if in.ToolName == "" {
+		in.ToolName = span.Name
+	}
+	if len(in.ToolInput) == 0 {
+		in.ToolInput = span.Input
 	}
 	delete(st.PendingSpans, key)
+	if st.CompletedTools == nil {
+		st.CompletedTools = map[string]bool{}
+	}
+	if in.ToolUseID != "" {
+		st.CompletedTools[key] = true
+	}
 
 	execID := ensureExecution(ctx, client, cfg, in, st)
 
@@ -315,12 +398,12 @@ func handlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 		spanStatus, outcome = "FAILED", "error"
 	}
 
-	endedAt := nowRFC3339()
+	endedAt := hookTime(cfg)
 	spanPayload := map[string]any{
 		"id":           span.SpanID,
 		"execution_id": st.ExecutionID,
 		"span_type":    "TOOL_CALL",
-		"name":         in.ToolName,
+		"name":         span.Name,
 		"status":       spanStatus,
 		"started_at":   span.StartedAt,
 		"ended_at":     endedAt,
@@ -333,17 +416,18 @@ func handlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 			// Lets the dashboard join this span to its audit tool event for
 			// per-tool durations.
 			"tool_use_id": in.ToolUseID,
+			"session_id":  in.SessionID, "capture_mode": cfg.CaptureMode,
 		},
 	}
 	if failed && in.Error != "" && cfg.CaptureMode != CaptureHash {
-		spanPayload["metadata"].(map[string]any)["error"] = truncate(in.Error, 500)
+		spanPayload["metadata"].(map[string]any)["error"] = capturedError(in.Error, cfg)
 	}
-	if st.TurnSpanID != "" {
-		spanPayload["parent_span_id"] = st.TurnSpanID
+	if span.ParentSpanID != "" {
+		spanPayload["parent_span_id"] = span.ParentSpanID
 	}
 
 	batch := []map[string]any{spanPayload}
-	if miSpan, ok := MaybeModelInvocationSpan(in, st.ExecutionID, st.TurnSpanID); ok {
+	if miSpan, ok := MaybeModelInvocationSpan(in, st.ExecutionID, span.ParentSpanID); ok {
 		batch = append(batch, miSpan)
 	}
 
@@ -357,10 +441,12 @@ func handlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 		"tool_use_id": in.ToolUseID,
 		// Links lazily-started executions into the session rollup: the
 		// backend aggregation reads execution_id off event metadata.
-		"execution_id": st.ExecutionID,
+		"execution_id":  st.ExecutionID,
+		"tool_input":    RedactInput(in.ToolInput, cfg.CaptureMode),
+		"tool_response": SummarizeOutput(in.ToolResponse, cfg.CaptureMode),
 	}
 	if failed && in.Error != "" && cfg.CaptureMode != CaptureHash {
-		auditMD["error"] = truncate(in.Error, 500)
+		auditMD["error"] = capturedError(in.Error, cfg)
 	}
 	auditErr := auditLog(ctx, client, cfg, fact0.AuditEventInput{
 		Actor:    AgentActor(),
@@ -379,50 +465,6 @@ func handlePostTool(ctx context.Context, client *fact0.Client, cfg Config, in Ho
 	return auditErr
 }
 
-// RecordPolicySpan best-effort ingests a POLICY_EVALUATION span recording a
-// governance decision. It is point-in-time (started_at == ended_at), nests under
-// the active turn span when present, and only ships when the session has an
-// ExecutionID. Errors are intentionally swallowed (returns nil) so that policy
-// telemetry can never block or alter the enforcement decision.
-func RecordPolicySpan(ctx context.Context, client *fact0.Client, cfg Config, in HookInput, allow bool, reason string) error {
-	defer func() { _ = recover() }()
-
-	st, _ := LoadState(cfg, in.SessionID)
-	if st == nil {
-		return nil
-	}
-	if ensureExecution(ctx, client, cfg, in, st) == "" {
-		return nil
-	}
-
-	decision := "allow"
-	if !allow {
-		decision = "deny"
-	}
-
-	now := nowRFC3339()
-	span := map[string]any{
-		"id":           newSpanID(),
-		"execution_id": st.ExecutionID,
-		"span_type":    "POLICY_EVALUATION",
-		"name":         "policy:" + in.ToolName,
-		"status":       "COMPLETED",
-		"started_at":   now,
-		"ended_at":     now,
-		"metadata": map[string]any{
-			"tool":     in.ToolName,
-			"decision": decision,
-			"reason":   reason,
-		},
-	}
-	if st.TurnSpanID != "" {
-		span["parent_span_id"] = st.TurnSpanID
-	}
-
-	_ = ingestSpans(ctx, client, cfg, st.ExecutionID, []map[string]any{span})
-	return nil
-}
-
 // HandlePermission records a human permission decision (PermissionRequest /
 // PermissionDenied hooks, newer Claude Code builds) as an audit event plus a
 // point-in-time HUMAN_APPROVAL span — accountability for dangerous actions
@@ -436,7 +478,7 @@ func HandlePermission(ctx context.Context, client *fact0.Client, cfg Config, in 
 
 	st, _ := LoadState(cfg, in.SessionID)
 	if execID := ensureExecution(ctx, client, cfg, in, st); execID != "" {
-		now := nowRFC3339()
+		now := hookTime(cfg)
 		span := map[string]any{
 			"id":           newSpanID(),
 			"execution_id": execID,
@@ -490,7 +532,7 @@ func HandleSubagentStop(ctx context.Context, client *fact0.Client, cfg Config, i
 	st, _ := LoadState(cfg, in.SessionID)
 
 	if execID := ensureExecution(ctx, client, cfg, in, st); execID != "" {
-		now := nowRFC3339()
+		now := hookTime(cfg)
 		span := map[string]any{
 			"id":           newSpanID(),
 			"execution_id": execID,
@@ -512,15 +554,26 @@ func HandleSubagentStop(ctx context.Context, client *fact0.Client, cfg Config, i
 		}
 	}
 
+	stats := in.CapturedTurn
+	if stats == nil {
+		s, _ := ReadTurnFromTranscript(in.AgentTranscriptPath)
+		stats = &s
+	}
+	metadata := map[string]interface{}{"agent_type": in.AgentType, "agent_id": in.AgentID, "capture_status": stats.CaptureStatus, "capture_reason": stats.CaptureReason, "response_len": len(stats.ResponseText), "response_sha256": Sha256Hex(stats.ResponseText)}
+	if cfg.RawCapture() {
+		metadata["response"] = stats.ResponseText
+		metadata["messages"] = stats.Messages
+	} else if cfg.CaptureMode == CaptureMetadata {
+		metadata["response"] = truncate(stats.ResponseText, turnResponsePreviewLen)
+		metadata["response_truncated"] = len(stats.ResponseText) > turnResponsePreviewLen
+	}
+
 	return auditLog(ctx, client, cfg, fact0.AuditEventInput{
 		Actor:    AgentActor(),
 		Action:   "claude_code.subagent.stop",
 		Resource: fact0.Resource{ID: in.SessionID, Type: "claude_code.session"},
 		Outcome:  "success",
-		Metadata: map[string]interface{}{
-			"agent_type": in.AgentType,
-			"agent_id":   in.AgentID,
-		},
+		Metadata: metadata,
 	})
 }
 
@@ -549,8 +602,8 @@ func HandleStop(ctx context.Context, client *fact0.Client, cfg Config, in HookIn
 				"name":         "turn",
 				"status":       "COMPLETED",
 				"started_at":   turn.StartedAt,
-				"ended_at":     nowRFC3339(),
-				"metadata":     map[string]any{},
+				"ended_at":     hookTime(cfg),
+				"metadata":     turn.Metadata,
 			}
 			ingestErr = ingestSpans(ctx, client, cfg, execID, []map[string]any{span})
 		}
@@ -562,10 +615,13 @@ func HandleStop(ctx context.Context, client *fact0.Client, cfg Config, in HookIn
 		return err
 	}
 
-	if stats, ok := ReadTurnFromTranscript(in.TranscriptPath); ok {
-		if err := emitTurnComplete(ctx, client, cfg, in, execID, turnSpanID, stats); err != nil {
-			logf("turn enrichment: %v", err)
-		}
+	stats := in.CapturedTurn
+	if stats == nil {
+		s, _ := ReadTurnFromTranscript(in.TranscriptPath)
+		stats = &s
+	}
+	if err := emitTurnComplete(ctx, client, cfg, in, execID, turnSpanID, *stats); err != nil {
+		return err
 	}
 	return ingestErr
 }
@@ -586,12 +642,16 @@ func emitTurnComplete(ctx context.Context, client *fact0.Client, cfg Config, in 
 		"output_tokens":   stats.OutputTokens,
 		"response_len":    len(stats.ResponseText),
 		"response_sha256": Sha256Hex(stats.ResponseText),
+		"capture_status":  stats.CaptureStatus,
+		"capture_reason":  stats.CaptureReason,
 	}
 	switch cfg.CaptureMode {
 	case CaptureRawMode:
 		md["response"] = stats.ResponseText
+		md["messages"] = stats.Messages
 	case CaptureMetadata:
 		md["response"] = truncate(stats.ResponseText, turnResponsePreviewLen)
+		md["response_truncated"] = len(stats.ResponseText) > turnResponsePreviewLen
 	}
 
 	auditErr := auditLog(ctx, client, cfg, fact0.AuditEventInput{
@@ -603,7 +663,7 @@ func emitTurnComplete(ctx context.Context, client *fact0.Client, cfg Config, in 
 	})
 
 	if execID != "" && (stats.InputTokens > 0 || stats.OutputTokens > 0) {
-		now := nowRFC3339()
+		now := hookTime(cfg)
 		model := stats.Model
 		if model == "" {
 			model = "claude"
@@ -635,9 +695,48 @@ func emitTurnComplete(ctx context.Context, client *fact0.Client, cfg Config, in 
 	return auditErr
 }
 
+func capturedError(s string, cfg Config) string {
+	if cfg.RawCapture() {
+		return s
+	}
+	return truncate(s, 500)
+}
+
 // HandleSessionEnd ends the execution trace, records session.end, and clears state.
 func HandleSessionEnd(ctx context.Context, client *fact0.Client, cfg Config, in HookInput) error {
 	st, _ := LoadState(cfg, in.SessionID)
+
+	// Closing a session without matching Stop/Post hooks leaves visible partial
+	// captures, not silently RUNNING children under a finished execution.
+	if st.ExecutionID != "" && len(st.PendingSpans) > 0 {
+		keys := make([]string, 0, len(st.PendingSpans))
+		for key := range st.PendingSpans {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		var cancelled []map[string]any
+		for _, key := range keys {
+			pending := st.PendingSpans[key]
+			kind := "TOOL_CALL"
+			if key == "__turn__" {
+				kind = "CUSTOM"
+			}
+			metadata := map[string]string{}
+			for k, v := range pending.Metadata {
+				metadata[k] = v
+			}
+			metadata["capture_status"] = "partial"
+			metadata["capture_reason"] = "session ended before completion hook"
+			span := map[string]any{"id": pending.SpanID, "execution_id": st.ExecutionID, "span_type": kind, "name": pending.Name, "status": "CANCELLED", "started_at": pending.StartedAt, "ended_at": hookTime(cfg), "metadata": metadata}
+			if pending.ParentSpanID != "" {
+				span["parent_span_id"] = pending.ParentSpanID
+			}
+			cancelled = append(cancelled, span)
+		}
+		if err := ingestSpans(ctx, client, cfg, st.ExecutionID, cancelled); err != nil {
+			return err
+		}
+	}
 
 	var endErr error
 	if st.ExecutionID != "" {
@@ -671,4 +770,11 @@ func HandleSessionEnd(ctx context.Context, client *fact0.Client, cfg Config, in 
 		return auditErr
 	}
 	return clearErr
+}
+
+func hookTime(cfg Config) string {
+	if cfg.transaction != nil && cfg.transaction.Timestamp != "" {
+		return cfg.transaction.Timestamp
+	}
+	return nowRFC3339()
 }

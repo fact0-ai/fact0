@@ -12,18 +12,24 @@ import (
 // SpanStart records an in-flight span so that PostToolUse can correlate with
 // the matching PreToolUse event.
 type SpanStart struct {
-	SpanID    string `json:"span_id"`
-	Name      string `json:"name"`
-	StartedAt string `json:"started_at"`
+	SpanID       string            `json:"span_id"`
+	Name         string            `json:"name"`
+	StartedAt    string            `json:"started_at"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	Input        json.RawMessage   `json:"input,omitempty"`
+	ParentSpanID string            `json:"parent_span_id,omitempty"`
 }
 
 // SessionState is the per-session state persisted between hook invocations.
 // Each Claude Code hook runs as its own process, so state is durable on disk.
 type SessionState struct {
-	SessionID    string               `json:"session_id"`
-	ExecutionID  string               `json:"execution_id"`
-	TurnSpanID   string               `json:"turn_span_id,omitempty"`
-	PendingSpans map[string]SpanStart `json:"pending_spans,omitempty"` // key = ToolUseID or tool name
+	SessionID      string               `json:"session_id"`
+	ExecutionKey   string               `json:"execution_key,omitempty"`
+	ExecutionID    string               `json:"execution_id"`
+	TurnSpanID     string               `json:"turn_span_id,omitempty"`
+	PendingSpans   map[string]SpanStart `json:"pending_spans,omitempty"` // key = ToolUseID or tool name
+	CompletedTools map[string]bool      `json:"completed_tools,omitempty"`
+	Closed         bool                 `json:"closed,omitempty"`
 }
 
 // safeSessionID sanitizes a session id for use as a filename component,
@@ -45,7 +51,10 @@ func safeSessionID(sessionID string) string {
 	}, sessionID)
 	// Avoid hidden/relative names like "." or ".." after mapping.
 	if mapped == "" || mapped == "." || mapped == ".." {
-		return "default"
+		return "default-" + Sha256Hex(sessionID)[:16]
+	}
+	if mapped != sessionID {
+		mapped += "-" + Sha256Hex(sessionID)[:16]
 	}
 	return mapped
 }
@@ -57,8 +66,11 @@ func StatePath(cfg Config, sessionID string) string {
 
 // LoadState reads the persisted state for a session. If the file does not
 // exist, a zero-value (non-nil) state with the SessionID populated is returned
-// and no error. Corrupt files are treated as missing.
+// and no error. Corrupt files are retained and reported.
 func LoadState(cfg Config, sessionID string) (*SessionState, error) {
+	if cfg.transaction != nil {
+		return cfg.transaction.State, nil
+	}
 	st := &SessionState{
 		SessionID:    sessionID,
 		PendingSpans: map[string]SpanStart{},
@@ -72,11 +84,10 @@ func LoadState(cfg Config, sessionID string) (*SessionState, error) {
 		return st, err
 	}
 	if len(data) == 0 {
-		return st, nil
+		return st, errors.New("empty session state")
 	}
 	if err := json.Unmarshal(data, st); err != nil {
-		// Treat unreadable state as a fresh start rather than failing the hook.
-		return &SessionState{SessionID: sessionID, PendingSpans: map[string]SpanStart{}}, nil
+		return st, err
 	}
 	if st.SessionID == "" {
 		st.SessionID = sessionID
@@ -93,7 +104,14 @@ func SaveState(cfg Config, st *SessionState) error {
 	if st == nil {
 		return errors.New("nil session state")
 	}
+	if cfg.transaction != nil {
+		cfg.transaction.State = st
+		return nil
+	}
 	if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
+		return err
+	}
+	if err := os.Chmod(cfg.StateDir, 0700); err != nil {
 		return err
 	}
 	data, err := json.Marshal(st)
@@ -124,12 +142,19 @@ func SaveState(cfg Config, st *SessionState) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, path)
+	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	return syncDir(cfg.StateDir)
 }
 
 // ClearState removes the persisted state file for a session. A missing file is
 // not an error.
 func ClearState(cfg Config, sessionID string) error {
+	if cfg.transaction != nil {
+		cfg.transaction.State.Closed = true
+		return nil
+	}
 	err := os.Remove(StatePath(cfg, sessionID))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err

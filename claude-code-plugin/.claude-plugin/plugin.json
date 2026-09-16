@@ -1,7 +1,7 @@
 {
   "name": "fact0-claude-code",
-  "description": "Stream every Claude Code session into Fact0 as tamper-evident audit + telemetry.",
-  "version": "0.1.0",
+  "description": "Capture Claude Code prompts, tools, and supported assistant transcripts in your self-hosted Fact0 audit trail.",
+  "version": "0.3.0",
   "author": {
     "name": "Fact0",
     "url": "https://fact0.io"

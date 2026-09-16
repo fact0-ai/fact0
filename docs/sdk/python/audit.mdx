@@ -1,14 +1,17 @@
 ---
 title: Audit client
-description: Python AuditClient API reference for compliance-grade audit logging.
+description: Python AuditClient API reference for self-hosted audit records.
 ---
 
 # Audit client
 
+Writing events requires a write-scoped instance key. Read-scoped keys can query, verify and export records. The supported core commits ingestion synchronously; receipt polling methods below remain SDK compatibility APIs and are unavailable on this core.
+
 ```python
+import os
 import fact0
 
-client = fact0.Client(api_key="f0_live_...")
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 audit = client.audit  # or client.audit directly via convenience methods
 ```
 
@@ -17,7 +20,7 @@ audit = client.audit  # or client.audit directly via convenience methods
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `api_key` | required | Write or read-scoped `f0_live_*` key |
-| `base_url` | `https://api.fact0.io` | API origin |
+| `base_url` | `https://api.fact0.io` | Compatibility default; explicitly set your self-hosted origin as above |
 | `batch_max_size` | `100` | Max events per flush |
 | `batch_max_wait_ms` | `500` | Max wait before flush |
 | `raise_on_error` | `False` | Raise on transport failure |
@@ -109,15 +112,13 @@ Always configure the `lifespan` hook to ensure the background batching workers a
 ```python
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
+import os
 import fact0
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize AsyncClient; it runs a background buffer worker
-    app.state.fact0 = fact0.AsyncClient(
-        api_key="f0_live_...",
-        sync=False # defaults to async background batching
-    )
+    app.state.fact0 = fact0.AsyncClient(api_key=os.environ['FACT0_API_KEY'], sync=False, base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
     yield
     # CRITICAL: Close client on shutdown to drain all pending buffers
     await app.state.fact0.close()
@@ -134,10 +135,11 @@ If a network partition occurs and `dead_letter_path` is configured, Fact0 writes
 
 ```python
 import json
+import os
 import fact0
 
 def replay_dead_letters(file_path: str, api_key: str):
-    client = fact0.Client(api_key=api_key, sync=True) # Use sync ingest for verification
+    client = fact0.Client(api_key=api_key, sync=True, base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000')) # Use sync ingest for verification
     replayed_count = 0
     events = []
     
@@ -162,6 +164,7 @@ Do not send live HTTP requests to `api.fact0.io` during unit tests. Mock the tra
 ```python
 import pytest
 from unittest.mock import MagicMock
+import os
 import fact0
 
 @pytest.fixture

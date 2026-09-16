@@ -20,10 +20,11 @@ pip install fact0-sdk pyautogen
 One execution per chat, one span per agent turn.
 
 ```python
+import os
 import fact0
 from autogen import ConversableAgent, GroupChat, GroupChatManager
 
-client = fact0.Client(api_key="f0_live_...")
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 
 planner = ConversableAgent("planner", llm_config={"model": "gpt-4o"})
 coder = ConversableAgent("coder",   llm_config={"model": "gpt-4o"})

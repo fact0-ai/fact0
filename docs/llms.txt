@@ -1,196 +1,28 @@
 # Fact0 Documentation
 
-> Universal fact layer with tamper-evident audit logs and execution telemetry for AI agents.
+> Experimental, self-hosted execution inspection and audit records for AI agents, with Python and Claude Code integrations. MIT licensed; best-effort maintenance without an SLA.
 
-## Quick links
+## Start here
 
-- [Welcome](/introduction)
-- [Fact0 Platform](/platform/overview)
-- [Quickstart](/quickstart)
-- [Audit vs telemetry](/concepts/audit-vs-telemetry)
+- [Installation and owner setup](/quickstart)
+- [Deterministic Python example](/sdk/python/installation)
+- [Claude Code collector](/integrations/claude-code)
+- [Verification and signed exports](/guides/verification)
+- [Storage, backup and restore](/guides/self-hosting)
+- [Security and capture limitations](/guides/security)
 
-## SDKs
+Configure every integration with its explicit local destination, normally `http://localhost:8000`. SDK package defaults retained for compatibility are not installation instructions. Never send test traffic to a hosted Fact0 endpoint.
 
-- [SDK overview](/sdk/overview) - versions, env vars, API base URL
-- Python: `pip install fact0-sdk` - [docs](/sdk/python/installation)
-- TypeScript: `npm install @fact0/sdk` - [docs](/sdk/typescript/installation)
-- Go: `go get github.com/fact0-ai/fact0/sdk/go` - [docs](/sdk/go/installation)
+## Interfaces and package identities
 
-API base URL: `https://api.fact0.io`
+- Audit records: `/v1`; execution telemetry: `/api/v1`.
+- Python: distribution `fact0-sdk`, import `fact0`. Install the SDK from this release checkout for the supported first-use example.
+- TypeScript: `@fact0/sdk`, import `Fact0Client`.
+- Go: `github.com/fact0-ai/fact0/sdk/go`.
+- Canonical schemas: root `openapi/audit.v1.yaml` and `openapi/telemetry.v1.yaml`, copied into `docs/openapi` by `scripts/sync-openapi.sh`.
 
-## Integrations
+## Supported release
 
-- [Overview](/integrations/overview)
-- **OpenTelemetry native**: OTLP/gRPC on `:4317` and OTLP/HTTP at `/v1/otlp/v1/traces` - [docs](/integrations/opentelemetry)
-- Agent frameworks: [LangChain](/integrations/langchain) · [LangGraph](/integrations/langgraph) · [LlamaIndex](/integrations/llamaindex) · [CrewAI](/integrations/crewai) · [AutoGen](/integrations/autogen) · [Agno](/integrations/agno) · [CAMEL AI](/integrations/camel-ai) · [OpenAI Agents SDK](/integrations/openai-agents-sdk) · [Google ADK](/integrations/google-adk) · [Mastra](/integrations/mastra) · [Vercel AI SDK](/integrations/vercel-ai-sdk) · [ChatDev](/integrations/chatdev)
-- Web frameworks: [FastAPI](/integrations/fastapi) · [Next.js](/integrations/nextjs) · [Express](/integrations/express)
+One owner and workspace, password login, authenticated inspection, timelines, DAGs, replay, basic usage, chain verification and exports. Raw Claude capture is the default and stores supported prompts, source and tool output in the local instance. Hashes and metadata-only capture are selectable. Prepare the collector binary before starting Claude; hooks never download it.
 
-## Observability
-
-- [Observability Hub](/observability/overview) — real-time LLM call metrics, tool execution stats, error rates, and conversation sessions
-- [Prompt Registry](/observability/prompt-registry) — version-controlled prompt templates fetched by agents at runtime via `GET /v1/me/prompts/{name}`
-
-## Guides
-
-- [Agent Prompt for AI Coding Assistants](/guides/agent-prompt) — language-tabbed prompt (Python / TypeScript / Go) for Cursor, Antigravity, Copilot, etc.
-- [Alerts & Webhooks](/guides/alerts) — webhook notifications for audit events and execution failures
-- [Compliance](/guides/compliance)
-- [Security](/guides/security)
-- [Rate limits](/guides/rate-limits)
-
-## API reference
-
-- [Audit API](/api-reference/audit-api)
-- [Telemetry API](/api-reference/telemetry-api)
-
-## LLM Integration & AI Coding Assistant Guidelines
-
-When writing code to integrate Fact0, follow these strict rules to ensure correct usage and prevent import errors.
-
-### 1. SDK Import and Package Guidelines
-
-* **Python SDK**:
-  * **PyPI Package Name**: `fact0-sdk` (Do NOT use `fact0` as the package name on pip, it is a different package).
-  * **Import Statement**: `import fact0` or `from fact0 import Client, AsyncClient, Fact0Error, ValidationError, TransportError`.
-  * **CRITICAL**: Do **NOT** write imports like `from src.audit import ...` or `from src.telemetry import ...`. All SDK logic and clients are imported directly from the `fact0` package.
-* **TypeScript SDK**:
-  * **npm Package Name**: `@fact0/sdk`
-  * **Import Statement**: `import { Fact0Client } from "@fact0/sdk"`
-* **Go SDK**:
-  * **Module Path**: `github.com/fact0-ai/fact0/sdk/go`
-  * **Import Statement**: `import fact0 "github.com/fact0-ai/fact0/sdk/go"`
-
----
-
-### 2. Python SDK API Details
-
-#### Instantiation
-```python
-import fact0
-
-# Synchronous client (defaults base_url to "https://api.fact0.io")
-client = fact0.Client(api_key="f0_live_...")
-
-# Asynchronous client (defaults base_url to "https://api.fact0.io")
-async_client = fact0.AsyncClient(api_key="f0_live_...")
-```
-
-#### Audit Event Logging (Synchronous)
-Use `client.audit.log(...)` or the convenience shortcut `client.log(...)` to append a single audit event to the tamper-evident ledger.
-```python
-client.audit.log(
-    actor={"id": "agent-1", "type": "agent", "email": "agent@acme.com"},
-    action="document.delete",
-    resource={"id": "doc_456", "type": "document", "name": "Q3 Report"},
-    outcome="success",  # "success" | "failure" | "error"
-    metadata={"deleted_by": "cleaner"},  # optional dict
-    timestamp=None,  # optional datetime (defaults to current time)
-    event_id=None,  # optional string UUID for idempotency
-)
-# Or: client.log(actor=..., action=..., resource=..., outcome=...)
-```
-
-#### Audit Event Logging (Asynchronous)
-**CRITICAL**: `AsyncClient` does **NOT** have a `client.log` convenience shortcut. You **MUST** use `await async_client.audit.log(...)`.
-```python
-await async_client.audit.log(
-    actor={"id": "agent-1", "type": "agent"},
-    action="document.delete",
-    resource={"id": "doc_456", "type": "document"},
-    outcome="success",
-)
-```
-
-#### Telemetry & Execution Tracing (Synchronous)
-Wrap agent runs and nested tasks using context managers:
-```python
-with client.telemetry.execution(
-    agent_id="research-bot",
-    agent_name="Research Bot",  # optional
-    trigger="user_query",  # optional
-    metadata={"query": "AI industry"}  # optional
-) as ex:
-    # Track model invocation or tool call
-    with ex.span("web_search", span_type="TOOL_CALL") as span:
-        span.log_event("query_submitted", {"q": "Fact0 audit"})
-        # Perform action...
-        span.complete(output={"results_count": 5})
-
-    with ex.span("gpt-4o", span_type="MODEL_INVOCATION") as span:
-        # Perform inference...
-        span.complete(output={"tokens_used": 125})
-```
-
-* **Valid Span Types**: `TOOL_CALL`, `MODEL_INVOCATION`, `STATE_MUTATION`, `HUMAN_APPROVAL`, `POLICY_EVALUATION`, `CUSTOM`.
-
----
-
-### 3. TypeScript SDK API Details
-
-#### Instantiation
-```typescript
-import { Fact0Client } from "@fact0/sdk";
-
-const client = new Fact0Client({
-  apiKey: "f0_live_...",
-  baseUrl: "https://api.fact0.io" // optional
-});
-```
-
-#### Audit Event Logging
-```typescript
-await client.audit.log({
-  actor: { id: "user_123", type: "human" },
-  action: "invoice.approve",
-  resource: { id: "inv_99", type: "invoice" },
-  outcome: "success",
-  metadata: { amount: 5000 }
-});
-```
-
-#### Telemetry
-```typescript
-const ex = await client.telemetry.startExecution({
-  agentId: "support-bot",
-  trigger: "new_ticket"
-});
-
-// Log spans/events manually using:
-// client.telemetry.ingestSpans(ex.id, spans)
-// client.telemetry.ingestEvents(ex.id, events)
-
-await client.telemetry.endExecution(ex.id, "COMPLETED");
-```
-
----
-
-### 4. Go SDK API Details
-
-#### Instantiation
-```go
-import fact0 "github.com/fact0-ai/fact0/sdk/go"
-
-client := fact0.NewClient(fact0.Config{
-    APIKey:  "f0_live_...",
-    BaseURL: "https://api.fact0.io", // optional
-})
-```
-
-#### Audit Event Logging
-```go
-err := client.Audit.Log(ctx, fact0.AuditEventInput{
-    Actor: fact0.ActorInput{
-        ID:   "system-cron",
-        Type: "system",
-    },
-    Action: "backup.create",
-    Resource: fact0.ResourceInput{
-        ID:   "db_replica_1",
-        Type: "database",
-    },
-    Outcome: "success",
-    Metadata: map[string]interface{}{
-        "size_bytes": 1048576,
-    },
-})
-```
+Billing, invitations, founder administration, Spotlight, email, external alert webhooks, public sharing, policy enforcement and OTLP are disabled. Records do not expire automatically. A valid audit chain establishes integrity of recorded entries, not completeness of real-world activity or protection from an operator replacing the whole database and its keys.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -51,6 +52,7 @@ type DeadLetter struct {
 	ExecutionID string           `json:"execution_id,omitempty"`
 	Spans       []map[string]any `json:"spans,omitempty"`
 	Status      string           `json:"status,omitempty"`
+	EndedAt     string           `json:"ended_at,omitempty"`
 }
 
 // deadLetterDir returns the directory holding undelivered payloads.
@@ -131,30 +133,35 @@ func isDeadLetterFile(e os.DirEntry) bool {
 }
 
 // deliverDeadLetter attempts to send one dead letter to the backend. A dead
-// letter whose payload is unusable (e.g. missing execution id) is treated as
-// delivered so it gets removed rather than retried forever.
+// letter whose payload is unusable is retained with an explicit error.
 func deliverDeadLetter(ctx context.Context, client *fact0.Client, dl *DeadLetter) error {
 	switch dl.Kind {
 	case dlKindAudit:
 		if dl.Audit == nil {
-			return nil
+			return permanentDeliveryError{fmt.Errorf("missing audit payload")}
 		}
-		return client.Audit.Log(ctx, *dl.Audit)
+		resp, err := client.Audit.LogBatch(ctx, []fact0.AuditEventInput{*dl.Audit})
+		if err != nil {
+			return err
+		}
+		return checkAcceptance(resp, "accepted", 1)
 	case dlKindSpans:
 		if dl.ExecutionID == "" || len(dl.Spans) == 0 {
-			return nil
+			return permanentDeliveryError{fmt.Errorf("missing span payload or execution id")}
 		}
-		_, err := client.Telemetry.IngestSpans(ctx, dl.ExecutionID, dl.Spans)
-		return err
+		resp, err := client.Telemetry.IngestSpans(ctx, dl.ExecutionID, dl.Spans)
+		if err != nil {
+			return err
+		}
+		return checkAcceptance(resp, "accepted_count", len(dl.Spans))
 	case dlKindEndExecution:
 		if dl.ExecutionID == "" {
-			return nil
+			return permanentDeliveryError{fmt.Errorf("missing execution id")}
 		}
-		_, err := client.Telemetry.EndExecution(ctx, dl.ExecutionID, dl.Status)
+		_, err := client.Telemetry.EndExecutionAt(ctx, dl.ExecutionID, dl.Status, dl.EndedAt)
 		return err
 	default:
-		logf("dropping dead letter with unknown kind %q", dl.Kind)
-		return nil
+		return permanentDeliveryError{fmt.Errorf("unknown operation kind %q", dl.Kind)}
 	}
 }
 
@@ -190,7 +197,9 @@ func ReplayDeadLetters(ctx context.Context, client *fact0.Client, cfg Config) {
 			continue
 		}
 		var dl DeadLetter
-		if err := json.Unmarshal(data, &dl); err != nil {
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.UseNumber()
+		if err := dec.Decode(&dl); err != nil {
 			logf("abandoning corrupt dead letter %s: %v", name, err)
 			_ = os.Rename(path, path+dlAbandoned)
 			continue
@@ -222,10 +231,29 @@ func ReplayDeadLetters(ctx context.Context, client *fact0.Client, cfg Config) {
 // event time rather than the redelivery time. Returns nil when the event was
 // either delivered or durably queued; an error means the event was lost.
 func auditLog(ctx context.Context, client *fact0.Client, cfg Config, event fact0.AuditEventInput) error {
-	if event.Timestamp == "" {
-		event.Timestamp = nowRFC3339()
+	if event.ID == "" {
+		event.ID = "evt_" + strings.TrimPrefix(newSpanID(), "span_")
 	}
-	err := client.Audit.Log(ctx, event)
+	if event.Timestamp == "" {
+		if cfg.transaction != nil {
+			event.Timestamp = cfg.transaction.Timestamp
+		} else {
+			event.Timestamp = nowRFC3339()
+		}
+	}
+	if event.Metadata == nil {
+		event.Metadata = map[string]interface{}{}
+	}
+	event.Metadata["capture_mode"] = cfg.CaptureMode
+	if cfg.transaction != nil {
+		event.Metadata["session_id"] = cfg.transaction.Input.SessionID
+		if cfg.transaction.State != nil {
+			event.Metadata["execution_id"] = cfg.transaction.State.ExecutionID
+		}
+		cfg.transaction.Operations = append(cfg.transaction.Operations, DeadLetter{Kind: dlKindAudit, Audit: &event})
+		return nil
+	}
+	err := deliverOperation(ctx, client, cfg, &DeadLetter{Kind: dlKindAudit, Audit: &event})
 	if err == nil {
 		return nil
 	}
@@ -240,7 +268,28 @@ func auditLog(ctx context.Context, client *fact0.Client, cfg Config, event fact0
 // ingestSpans delivers a span batch, dead-lettering it on failure. Same
 // delivered-or-queued contract as auditLog.
 func ingestSpans(ctx context.Context, client *fact0.Client, cfg Config, executionID string, spans []map[string]any) error {
-	_, err := client.Telemetry.IngestSpans(ctx, executionID, spans)
+	if cfg.transaction != nil {
+		// Split only at span boundaries. A single oversize item is preserved
+		// whole and becomes an explicit permanent delivery error, never clipped.
+		var batch []map[string]any
+		flush := func() {
+			if len(batch) > 0 {
+				cfg.transaction.Operations = append(cfg.transaction.Operations, DeadLetter{Kind: dlKindSpans, ExecutionID: executionID, Spans: batch})
+				batch = nil
+			}
+		}
+		for _, span := range spans {
+			candidate := append(append([]map[string]any{}, batch...), span)
+			raw, _ := json.Marshal(map[string]any{"spans": candidate})
+			if len(batch) > 0 && int64(len(raw)) > requestLimit(cfg) {
+				flush()
+			}
+			batch = append(batch, span)
+		}
+		flush()
+		return nil
+	}
+	err := deliverOperation(ctx, client, cfg, &DeadLetter{Kind: dlKindSpans, ExecutionID: executionID, Spans: spans})
 	if err == nil {
 		return nil
 	}
@@ -255,14 +304,46 @@ func ingestSpans(ctx context.Context, client *fact0.Client, cfg Config, executio
 // endExecution ends an execution, dead-lettering the call on failure. Same
 // delivered-or-queued contract as auditLog.
 func endExecution(ctx context.Context, client *fact0.Client, cfg Config, executionID, status string) error {
-	_, err := client.Telemetry.EndExecution(ctx, executionID, status)
+	endedAt := hookTime(cfg)
+	if cfg.transaction != nil {
+		cfg.transaction.Operations = append(cfg.transaction.Operations, DeadLetter{Kind: dlKindEndExecution, ExecutionID: executionID, Status: status, EndedAt: endedAt})
+		return nil
+	}
+	_, err := client.Telemetry.EndExecutionAt(ctx, executionID, status, endedAt)
 	if err == nil {
 		return nil
 	}
-	if dlErr := SaveDeadLetter(cfg, &DeadLetter{Kind: dlKindEndExecution, ExecutionID: executionID, Status: status}); dlErr != nil {
+	if dlErr := SaveDeadLetter(cfg, &DeadLetter{Kind: dlKindEndExecution, ExecutionID: executionID, Status: status, EndedAt: endedAt}); dlErr != nil {
 		logf("end-execution failed (%v); dead-letter save also failed: %v", err, dlErr)
 		return err
 	}
 	logf("end-execution failed, queued to dead-letter: %v", err)
+	return nil
+}
+
+func checkAcceptance(resp map[string]any, countField string, want int) error {
+	if errs, ok := resp["errors"].([]any); ok && len(errs) > 0 {
+		return permanentDeliveryError{fmt.Errorf("batch item rejection: %s", jsonString(errs))}
+	}
+	if rejected, ok := resp["rejected"]; ok {
+		if n, valid := usageNumber(rejected); valid && n > 0 {
+			return permanentDeliveryError{fmt.Errorf("audit batch rejected %v items", rejected)}
+		}
+	}
+	var n int
+	switch v := resp[countField].(type) {
+	case float64:
+		n = int(v)
+	case json.Number:
+		i, _ := v.Int64()
+		n = int(i)
+	case int:
+		n = v
+	default:
+		return fmt.Errorf("backend response missing %s; acceptance unconfirmed", countField)
+	}
+	if n != want {
+		return permanentDeliveryError{fmt.Errorf("backend accepted %d of %d items", n, want)}
+	}
 	return nil
 }

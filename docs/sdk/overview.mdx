@@ -1,54 +1,10 @@
 ---
-title: SDK overview
-description: Official Fact0 client libraries for Python, TypeScript, and Go.
+title: "Client SDKs"
+description: "Existing client packages with an explicit self-hosted destination."
 ---
 
-# SDK overview
+The repository includes Python (`fact0-sdk`, imported as `fact0`), TypeScript (`@fact0/sdk`) and Go (`github.com/fact0-ai/fact0/sdk/go`) clients.
 
-All SDKs target **https://api.fact0.io** by default. Set `FACT0_API_KEY` (or pass `apiKey` / `APIKey` in code) with a write-scoped key from [app.fact0.io](https://app.fact0.io).
+Create an API key in your local dashboard. Set your own API URL explicitly using Python `base_url`, TypeScript `baseUrl` or Go `BaseURL`. Published defaults retain their existing behavior and must not be relied on to select your local installation.
 
-| Language | Package | Version | Install |
-|----------|---------|---------|---------|
-| Python | `fact0-sdk` | `1.0.6` | `pip install fact0-sdk` |
-| TypeScript | `@fact0/sdk` | `1.0.2` | `npm install @fact0/sdk` |
-| Go | `github.com/fact0-ai/fact0/sdk/go` | `1.0.4` | `go get github.com/fact0-ai/fact0/sdk/go` |
-
-<Warning>
-  **AI Coding Assistant / LLM Guidelines**:
-  - Always import directly from the official package namespaces (`import fact0` in Python, `@fact0/sdk` in TypeScript, and `github.com/fact0-ai/fact0/sdk/go` in Go).
-  - Do **NOT** import from local mock/wrapper paths like `from src.audit import ...` or `from src.telemetry import ...`.
-  - The Python package is `fact0-sdk` on PyPI but is imported as `import fact0`.
-</Warning>
-
-## Modules
-
-Every SDK exposes two clients:
-
-| Module | API prefix | Purpose |
-|--------|------------|---------|
-| **Audit** | `/v1/*` | Universal fact layer · tamper-evident audit log - ingest, query, verify, export |
-| **Telemetry** | `/api/v1/*` | Execution tracing - spans, DAG, replay |
-
-## Environment variables
-
-| Variable | Used by | Default |
-|----------|---------|---------|
-| `FACT0_API_KEY` | All SDKs | - (required) |
-
-The API origin defaults to **`https://api.fact0.io`** in every SDK. Override only in code (`base_url` / `baseUrl` / `BaseURL`) when using a local API or a private deployment — not via a separate env var.
-
-## Quick links
-
-<CardGroup cols={3}>
-  <Card title="Python" icon="python" href="/sdk/python/installation">
-    `pip install fact0-sdk`
-  </Card>
-  <Card title="TypeScript" icon="js" href="/sdk/typescript/installation">
-    `npm install @fact0/sdk`
-  </Card>
-  <Card title="Go" icon="golang" href="/sdk/go/installation">
-    `go get github.com/fact0-ai/fact0/sdk/go`
-  </Card>
-</CardGroup>
-
-Release notes: [Changelog](/changelog).
+Start with the [tested Python walkthrough](/sdk/python/installation). Existing framework integration pages are recipes; they do not extend the supported core to hosted services, OTLP or policy enforcement. Keep secrets out of source and call flush/close for buffered clients.

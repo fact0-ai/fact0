@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc session-start",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" session-start",
             "timeout": 10
           }
         ]
@@ -18,8 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc prompt",
-            "async": true
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" prompt",
+            "timeout": 10
           }
         ]
       }
@@ -30,7 +30,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc pre-tool"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" pre-tool",
+            "timeout": 10
           }
         ]
       }
@@ -41,8 +42,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc post-tool",
-            "async": true
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" post-tool",
+            "timeout": 10
           }
         ]
       }
@@ -53,8 +54,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc post-tool-failure",
-            "async": true
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" post-tool-failure",
+            "timeout": 10
           }
         ]
       }
@@ -65,20 +66,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc permission",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "PermissionDenied": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc permission",
-            "async": true
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" permission",
+            "timeout": 10
           }
         ]
       }
@@ -89,8 +78,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc notify",
-            "async": true
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" notify",
+            "timeout": 10
           }
         ]
       }
@@ -101,8 +90,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc subagent-stop",
-            "async": true
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" subagent-stop",
+            "timeout": 10
           }
         ]
       }
@@ -113,8 +102,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc stop",
-            "async": true
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" stop",
+            "timeout": 10
           }
         ]
       }
@@ -125,8 +114,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc session-end",
-            "timeout": 15
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/fact0-cc\" session-end",
+            "timeout": 10
           }
         ]
       }

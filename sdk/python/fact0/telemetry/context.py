@@ -35,6 +35,11 @@ class SpanContext:
         self._agent_id = agent_id
         self._parent_span_id = parent_span_id
 
+    @property
+    def id(self) -> str:
+        """The span's ID, usable as parent_span_id for child spans."""
+        return self._span_id
+
     def log_event(self, event_type: str, payload: dict[str, Any]) -> None:
         self._tel.ingest_events(
             self._execution_id,
@@ -61,6 +66,7 @@ class SpanContext:
         human_approval: dict[str, Any] | None = None,
         policy_evaluation: dict[str, Any] | None = None,
         metadata: dict[str, str] | None = None,
+        error: dict[str, Any] | None = None,
         audit: bool = True,
     ) -> None:
         """Mark the span complete and record its outcome and details.
@@ -87,6 +93,10 @@ class SpanContext:
             human_approval: Optional metadata for human approval gates.
             policy_evaluation: Optional metadata for policy check runs.
             metadata: Custom key-value pairs to attach to this span.
+            error: Optional failure details for the span. Supported keys:
+                - code (str): Machine-readable error code (e.g. exception class name).
+                - message (str): Human-readable error message.
+                - stack_trace (str): Optional stack trace.
             audit: Whether to log a corresponding audit log event.
         """
         if self._ended:
@@ -119,6 +129,8 @@ class SpanContext:
             span["human_approval"] = human_approval
         if policy_evaluation:
             span["policy_evaluation"] = policy_evaluation
+        if error:
+            span["error"] = error
         self._tel.ingest_spans(self._execution_id, [span])
 
         if audit and self._audit:
@@ -189,7 +201,9 @@ class ExecutionContext:
             raise RuntimeError("execution not started")
         return self._execution["id"]
 
-    def span(self, name: str, *, span_type: str = "CUSTOM") -> SpanContext:
+    def span(
+        self, name: str, *, span_type: str = "CUSTOM", parent_span_id: str | None = None
+    ) -> SpanContext:
         return SpanContext(
             self._tel,
             self.id,
@@ -197,16 +211,18 @@ class ExecutionContext:
             span_type,
             audit_client=self._tel._audit,
             agent_id=self._kwargs.get("agent_id", "unknown"),
+            parent_span_id=parent_span_id,
         )
 
     def __enter__(self) -> ExecutionContext:
+        self._kwargs.setdefault("started_at", _utcnow().isoformat())
         self._execution = self._tel.start_execution(**self._kwargs)
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
         if self._execution:
             status = "FAILED" if exc_type else "COMPLETED"
-            self._tel.end_execution(self._execution["id"], status)
+            self._tel.end_execution(self._execution["id"], status, ended_at=_utcnow().isoformat())
 
 
 class AsyncSpanContext:
@@ -230,6 +246,11 @@ class AsyncSpanContext:
         self._audit = audit_client
         self._agent_id = agent_id
         self._parent_span_id = parent_span_id
+
+    @property
+    def id(self) -> str:
+        """The span's ID, usable as parent_span_id for child spans."""
+        return self._span_id
 
     async def log_event(self, event_type: str, payload: dict[str, Any]) -> None:
         await self._tel.ingest_events(
@@ -257,6 +278,7 @@ class AsyncSpanContext:
         human_approval: dict[str, Any] | None = None,
         policy_evaluation: dict[str, Any] | None = None,
         metadata: dict[str, str] | None = None,
+        error: dict[str, Any] | None = None,
         audit: bool = True,
     ) -> None:
         """Mark the span complete and record its outcome and details asynchronously.
@@ -283,6 +305,10 @@ class AsyncSpanContext:
             human_approval: Optional metadata for human approval gates.
             policy_evaluation: Optional metadata for policy check runs.
             metadata: Custom key-value pairs to attach to this span.
+            error: Optional failure details for the span. Supported keys:
+                - code (str): Machine-readable error code (e.g. exception class name).
+                - message (str): Human-readable error message.
+                - stack_trace (str): Optional stack trace.
             audit: Whether to log a corresponding audit log event.
         """
         if self._ended:
@@ -315,6 +341,8 @@ class AsyncSpanContext:
             span["human_approval"] = human_approval
         if policy_evaluation:
             span["policy_evaluation"] = policy_evaluation
+        if error:
+            span["error"] = error
         await self._tel.ingest_spans(self._execution_id, [span])
 
         if audit and self._audit:
@@ -385,7 +413,9 @@ class AsyncExecutionContext:
             raise RuntimeError("execution not started")
         return self._execution["id"]
 
-    def span(self, name: str, *, span_type: str = "CUSTOM") -> AsyncSpanContext:
+    def span(
+        self, name: str, *, span_type: str = "CUSTOM", parent_span_id: str | None = None
+    ) -> AsyncSpanContext:
         return AsyncSpanContext(
             self._tel,
             self.id,
@@ -393,13 +423,15 @@ class AsyncExecutionContext:
             span_type,
             audit_client=self._tel._audit,
             agent_id=self._kwargs.get("agent_id", "unknown"),
+            parent_span_id=parent_span_id,
         )
 
     async def __aenter__(self) -> AsyncExecutionContext:
+        self._kwargs.setdefault("started_at", _utcnow().isoformat())
         self._execution = await self._tel.start_execution(**self._kwargs)
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         if self._execution:
             status = "FAILED" if exc_type else "COMPLETED"
-            await self._tel.end_execution(self._execution["id"], status)
+            await self._tel.end_execution(self._execution["id"], status, ended_at=_utcnow().isoformat())

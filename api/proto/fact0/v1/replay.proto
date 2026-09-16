@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package fact0.v1;
+
+option go_package = "github.com/fact0-ai/fact0/gen/go/fact0/v1;fact0v1";
+
+import "fact0/v1/execution.proto";
+
+// ─── Replay Service ─────────────────────────────────────────
+
+// ReplayService provides execution replay capabilities.
+service ReplayService {
+  // ReplayExecution returns an ordered stream of events for replay.
+  rpc ReplayExecution(ReplayExecutionRequest) returns (ReplayExecutionResponse);
+}
+
+// ─── Request/Response Messages ──────────────────────────────
+
+message ReplayExecutionRequest {
+  string execution_id = 1;
+  // Optional: replay from a specific sequence number
+  int64 from_sequence = 2;
+  // Optional: replay up to a specific sequence number
+  int64 to_sequence = 3;
+  // Optional: filter to specific span IDs
+  repeated string span_ids = 4;
+}
+
+message ReplayExecutionResponse {
+  Execution execution = 1;
+  repeated ReplayFrame frames = 2;
+  int64 total_frames = 3;
+}
+
+// ReplayFrame is a single step in the execution replay.
+message ReplayFrame {
+  int64 sequence_number = 1;
+  string event_type = 2;
+  string span_id = 3;
+  string span_name = 4;
+  SpanType span_type = 5;
+  ExecutionEvent event = 6;
+  // Delta from previous frame in milliseconds
+  int64 delta_ms = 7;
+  // Cumulative time from execution start
+  int64 elapsed_ms = 8;
+}

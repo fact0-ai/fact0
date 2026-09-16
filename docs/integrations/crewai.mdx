@@ -14,10 +14,11 @@ description: Audit and trace CrewAI multi-agent workflows with one execution per
 One execution per crew run, one span per agent task.
 
 ```python
+import os
 import fact0
 from crewai import Crew, Agent, Task
 
-client = fact0.Client(api_key="f0_live_...")
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 
 with client.telemetry.execution(agent_id="research-crew") as ex:
     crew = Crew(agents=[...], tasks=[...])

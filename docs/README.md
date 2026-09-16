@@ -1,49 +1,34 @@
-# Fact0 documentation (Mintlify)
+# Fact0 documentation
 
-Product docs for [Fact0](https://fact0.io), deployed at [docs.fact0.io](https://docs.fact0.io).
+Documentation sources for the experimental self-hosted Fact0 core. The published reference is [docs.fact0.io](https://docs.fact0.io); all application, SDK, collector and documentation sources live in this repository.
 
-This folder is part of the [fact0-ai/fact0](https://github.com/fact0-ai/fact0) monorepo (SDKs + docs).
+To run Fact0 itself, follow the repository [quickstart](../README.md#quickstart). Mintlify is only the documentation renderer and is not an application dependency.
 
-## Mintlify deployment
+## Local documentation preview
 
-| Setting | Value |
-|---------|-------|
-| Repository | `fact0-ai/fact0` |
-| Branch | `main` |
-| Monorepo path | **`docs`** |
+Use Node 22 (`docs/.nvmrc`). From the repository root:
 
-See [MINTLIFY.md](./MINTLIFY.md) for dashboard setup and migration from `fact0-ai/fact0-docs`.
-
-## Local preview
-
-Mintlify requires **Node LTS** (20 or 22). Homebrew’s default `node` may be 25+, which Mintlify rejects.
-
-```bash
+```sh
 cd docs
-
-# Homebrew: use node@22 for this shell (already installed on most dev machines)
-export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
-
-npx mintlify dev
+npx mintlify dev --port 3001
 ```
 
-With [nvm](https://github.com/nvm-sh/nvm): `nvm use` (reads `.nvmrc` → Node 22).
+Open the URL printed by the CLI. Port 3001 keeps the documentation preview separate from the local dashboard on port 3000. The initial CLI installation needs network access. With nvm, run `nvm use` inside `docs` first.
 
-## OpenAPI
+## API reference
 
-API reference pages use `openapi/*.yaml`. Sync from the app monorepo (canonical source):
+The root `openapi/` directory is canonical. Copy its specifications into the documentation with:
 
-```bash
-# from docs/ (while previewing Mintlify)
-bash sync-openapi.sh
-
-# or from fact0-ai/fact0 repo root
-bash scripts/sync-openapi-from-app.sh
+```sh
+# From the repository root:
+bash scripts/sync-openapi.sh
+python3 docs/scripts/validate-docs.py
 ```
 
-Auto-detects the app repo at `../` (nested clone) or `../fact0` (sibling clone).
-Override with `APP_REPO=/path/to/fact0-ai/fact0` if needed.
+Install PyYAML if the validator requests it. The compatibility scripts `docs/sync-openapi.sh` and `scripts/sync-openapi-from-app.sh` call the same local sync command; no sibling/private checkout or `APP_REPO` setting is used.
 
-## CI
+## Maintenance
 
-Validation runs via `.github/workflows/docs-validate.yml` at the repo root.
+The core and documentation workflows validate the sources. Keep examples aligned with the checked-in SDKs and the supported single-owner profile. Start with [Assistant.md](./Assistant.md) for terminology and [EXPLAINER.md](./EXPLAINER.md) for product boundaries.
+
+Publishing the documentation is optional maintainer work; see [MINTLIFY.md](./MINTLIFY.md).

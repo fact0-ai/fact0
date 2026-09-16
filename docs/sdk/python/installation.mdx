@@ -1,48 +1,36 @@
 ---
-title: Installation
-description: Install fact0-sdk (v1.0.6) and connect to Fact0 Cloud at https://api.fact0.io.
+title: "Python quickstart"
+description: "Inspect a local execution without a model account."
 ---
 
-# Python SDK
+Install the SDK from the same checkout as the core:
 
-| | |
-|---|---|
-| **PyPI** | [`fact0-sdk`](https://pypi.org/project/fact0-sdk/) v1.0.6 |
-| **Import** | `import fact0` |
-| **API** | `https://api.fact0.io` |
-| **Requires** | Python 3.10+ |
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e ./sdk/python
+export FACT0_BASE_URL=http://localhost:8000
+# Set FACT0_API_KEY to a local key created in your dashboard.
+python examples/local-python.py
+```
 
-## Installation
+The published distribution is named `fact0-sdk`; its Python import is `fact0`. For a released compatible SDK, `pip install fact0-sdk` is also available. Always pass the self-hosted base URL explicitly; existing SDK defaults remain unchanged.
 
-<Steps>
-  <Step title="Create an account">
-    Sign up at [app.fact0.io](https://app.fact0.io) and complete onboarding.
-  </Step>
-  <Step title="Get your API key">
-    Dashboard → **Settings → API Keys → New key**. Choose **write** scope. Copy the key - shown once.
+```python
+import os
+from fact0 import Client
 
-    ```bash
-    export FACT0_API_KEY="f0_live_..."
-    ```
-  </Step>
-  <Step title="Install">
-    ```bash
-    pip install fact0-sdk
-    ```
+client = Client(api_key=os.environ["FACT0_API_KEY"],
+                base_url=os.environ["FACT0_BASE_URL"], sync=True)
+try:
+    with client.telemetry.execution(agent_id="my-agent") as execution:
+        with execution.span("work") as span:
+            span.complete(output={"result": 42})
+    client.flush()
+finally:
+    client.close()
+```
 
-    Requires Python 3.10+. Import as `import fact0` (PyPI name is `fact0-sdk` because `fact0` is reserved on PyPI).
-  </Step>
-  <Step title="Verify">
-    ```bash
-    python -c "import fact0; print(fact0.__version__)"
-    ```
-  </Step>
-</Steps>
+The repository example includes a nested tool and a handled failure, reads the stored spans back, verifies the audit chain and saves an evidence ZIP. Open Executions and Audit in your local dashboard to inspect the result. It does not send prompts to any model service.
 
-<Warning>
-  Store API keys in a secrets manager. Raw keys are shown only once at creation.
-</Warning>
-
-The SDK defaults to `https://api.fact0.io`. For local development, pass `base_url="http://localhost:8000"` to `Client(...)`.
-
-Continue to the [Quickstart](/quickstart).
+For LangChain recipes, install `pip install -e './sdk/python[langchain]'`. Python, TypeScript and Go package identities are preserved; only the Python and Claude Code walkthroughs are core release acceptance gates.

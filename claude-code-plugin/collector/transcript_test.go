@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -141,6 +144,33 @@ func TestHandleStopHashModeOmitsResponse(t *testing.T) {
 	for _, r := range got {
 		if strings.Contains(r.Body, "The auth test passes now.") {
 			t.Errorf("hash mode leaked response text into %s: %s", r.Path, r.Body)
+		}
+	}
+}
+
+func TestTranscriptSameUUIDRetainsChangedBlocksAndUsage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "updated.jsonl")
+	lines := `{"type":"user","message":{"content":"prompt"}}
+{"type":"assistant","uuid":"same","message":{"id":"m","content":[{"type":"text","text":"first"}],"usage":{"output_tokens":1}}}
+{"type":"assistant","uuid":"same","message":{"id":"m","content":[{"type":"text","text":"second"}],"usage":{"output_tokens":2}}}
+{"type":"assistant","uuid":"same","message":{"id":"m","content":[{"type":"text","text":"second"}],"usage":{"output_tokens":3}}}
+`
+	if err := os.WriteFile(path, []byte(lines), 0600); err != nil {
+		t.Fatal(err)
+	}
+	stats, ok := ReadTurnFromTranscript(path)
+	if !ok || stats.ResponseText != "first\nsecond" || stats.OutputTokens != 3 || len(stats.Messages) != 2 {
+		t.Fatalf("lost updated transcript content: %+v", stats)
+	}
+}
+
+func TestRealUserPromptBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want bool
+	}{{`"prompt"`, true}, {`[{"type":"text","text":"prompt"}]`, true}, {`[{"type":"image","source":{"type":"base64","data":"fixture"}}]`, true}, {`[{"type":"tool_result","content":"output"}]`, false}, {`[]`, false}} {
+		if got := realUserPrompt(json.RawMessage(tc.raw)); got != tc.want {
+			t.Errorf("prompt boundary %s=%v", tc.raw, got)
 		}
 	}
 }

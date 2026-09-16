@@ -1,6 +1,6 @@
 ---
 title: Audit client
-description: TypeScript AuditClient API reference for compliance-grade audit logging.
+description: TypeScript AuditClient API reference for self-hosted audit records.
 ---
 
 # Audit client
@@ -10,12 +10,13 @@ import { Fact0Client } from "@fact0/sdk";
 
 const client = new Fact0Client({
   apiKey: process.env.FACT0_API_KEY!,
+  baseUrl: process.env.FACT0_BASE_URL ?? "http://localhost:8000",
 });
 const audit = client.audit;
 ```
 
 <Note>
-  Audit logging requires a write-scoped or read-scoped `f0_live_*` API key.
+  Writing audit events requires a write-scoped `f0_live_*` API key. Read-scoped keys can query, verify and export records.
 </Note>
 
 ## Constructor options
@@ -25,7 +26,7 @@ The `Fact0Client` accepts the following options:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `apiKey` | required | Write or read-scoped API key |
-| `baseUrl` | `https://api.fact0.io` | API origin (e.g. override with `http://localhost:8000` for local development) |
+| `baseUrl` | `https://api.fact0.io` | Compatibility default; explicitly set your self-hosted origin as above |
 
 You can also pass these values via the environment variable `FACT0_API_KEY`.
 
@@ -71,7 +72,7 @@ Filters and lists events. Parameters include: `actor_id`, `actor_type`, `action`
 
 `GET /v1/receipts/{id}`
 
-Retrieves an asynchronous ingestion receipt status.
+Compatibility method for asynchronous deployments. The supported core ingests synchronously and does not expose receipt polling.
 
 ## Verify methods
 

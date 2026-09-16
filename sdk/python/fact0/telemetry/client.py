@@ -3,14 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import logging
 import queue
 import threading
 from typing import Any
 
 from .._http import SyncHTTP, AsyncHTTP
+from ..exceptions import TransportError
 
 _log = logging.getLogger("fact0")
+
+
+def _checked_ingest(result: dict[str, Any], expected: int) -> dict[str, Any]:
+    if result.get("errors") or ("accepted_count" in result and result["accepted_count"] != expected):
+        raise TransportError("Telemetry batch contains rejected items", status_code=200)
+    return result
 
 
 class TelemetryClient:
@@ -24,6 +32,11 @@ class TelemetryClient:
         self._stopped = False
         self._worker = threading.Thread(target=self._process_queue, daemon=True, name="fact0-telemetry-worker")
         self._worker.start()
+        # Drain the queue on interpreter exit so short-lived scripts (e.g. a
+        # quickstart that sends one trace and exits) don't lose spans queued
+        # on the daemon worker thread. close() is idempotent, so an explicit
+        # client.close() beforehand is still fine.
+        atexit.register(self.close)
 
     def _process_queue(self) -> None:
         while True:
@@ -62,8 +75,11 @@ class TelemetryClient:
         trigger: str = "",
         metadata: dict[str, str] | None = None,
         idempotency_key: str = "",
+        started_at: str | None = None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"agent_id": agent_id}
+        if started_at is not None:
+            body["started_at"] = started_at
         if agent_name:
             body["agent_name"] = agent_name
         if trigger:
@@ -81,11 +97,11 @@ class TelemetryClient:
         return {}
 
     def _ingest_spans_sync(self, execution_id: str, spans: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._http.request(
+        return _checked_ingest(self._http.request(
             "POST",
             f"/api/v1/executions/{execution_id}/spans",
             json_body={"spans": spans},
-        )
+        ), len(spans))
 
     def ingest_events(self, execution_id: str, events: list[dict[str, Any]]) -> dict[str, Any]:
         if self._stopped:
@@ -94,23 +110,23 @@ class TelemetryClient:
         return {}
 
     def _ingest_events_sync(self, execution_id: str, events: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._http.request(
+        return _checked_ingest(self._http.request(
             "POST",
             f"/api/v1/executions/{execution_id}/events",
             json_body={"events": events},
-        )
+        ), len(events))
 
-    def end_execution(self, execution_id: str, status: str) -> dict[str, Any]:
+    def end_execution(self, execution_id: str, status: str, *, ended_at: str | None = None) -> dict[str, Any]:
         if self._stopped:
             return {}
-        self._queue.put((self._end_execution_sync, (execution_id, status), {}))
+        self._queue.put((self._end_execution_sync, (execution_id, status, ended_at), {}))
         return {}
 
-    def _end_execution_sync(self, execution_id: str, status: str) -> dict[str, Any]:
+    def _end_execution_sync(self, execution_id: str, status: str, ended_at: str | None = None) -> dict[str, Any]:
         return self._http.request(
             "PUT",
             f"/api/v1/executions/{execution_id}/end",
-            json_body={"status": status},
+            json_body={"status": status, **({"ended_at": ended_at} if ended_at is not None else {})},
         )
 
     def list_executions(self, **params: Any) -> dict[str, Any]:
@@ -199,9 +215,12 @@ class AsyncTelemetryClient:
         trigger: str = "",
         metadata: dict[str, str] | None = None,
         idempotency_key: str = "",
+        started_at: str | None = None,
     ) -> dict[str, Any]:
         self.start_background_worker()
         body: dict[str, Any] = {"agent_id": agent_id}
+        if started_at is not None:
+            body["started_at"] = started_at
         if agent_name:
             body["agent_name"] = agent_name
         if trigger:
@@ -220,11 +239,11 @@ class AsyncTelemetryClient:
         return {}
 
     async def _ingest_spans_async(self, execution_id: str, spans: list[dict[str, Any]]) -> dict[str, Any]:
-        return await self._http.request(
+        return _checked_ingest(await self._http.request(
             "POST",
             f"/api/v1/executions/{execution_id}/spans",
             json_body={"spans": spans},
-        )
+        ), len(spans))
 
     async def ingest_events(self, execution_id: str, events: list[dict[str, Any]]) -> dict[str, Any]:
         if self._stopped:
@@ -234,24 +253,24 @@ class AsyncTelemetryClient:
         return {}
 
     async def _ingest_events_async(self, execution_id: str, events: list[dict[str, Any]]) -> dict[str, Any]:
-        return await self._http.request(
+        return _checked_ingest(await self._http.request(
             "POST",
             f"/api/v1/executions/{execution_id}/events",
             json_body={"events": events},
-        )
+        ), len(events))
 
-    async def end_execution(self, execution_id: str, status: str) -> dict[str, Any]:
+    async def end_execution(self, execution_id: str, status: str, *, ended_at: str | None = None) -> dict[str, Any]:
         if self._stopped:
             return {}
         self.start_background_worker()
-        await self._queue.put((self._end_execution_async, (execution_id, status), {}))
+        await self._queue.put((self._end_execution_async, (execution_id, status, ended_at), {}))
         return {}
 
-    async def _end_execution_async(self, execution_id: str, status: str) -> dict[str, Any]:
+    async def _end_execution_async(self, execution_id: str, status: str, ended_at: str | None = None) -> dict[str, Any]:
         return await self._http.request(
             "PUT",
             f"/api/v1/executions/{execution_id}/end",
-            json_body={"status": status},
+            json_body={"status": status, **({"ended_at": ended_at} if ended_at is not None else {})},
         )
 
     async def list_executions(self, **params: Any) -> dict[str, Any]:

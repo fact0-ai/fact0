@@ -6,9 +6,10 @@ description: Python TelemetryClient for execution tracing, spans, and replay.
 # Telemetry client
 
 ```python
+import os
 import fact0
 
-client = fact0.Client(api_key=os.environ["FACT0_API_KEY"])
+client = fact0.Client(api_key=os.environ["FACT0_API_KEY"], base_url=os.environ.get("FACT0_BASE_URL", "http://localhost:8000"), sync=True)
 tel = client.telemetry
 ```
 

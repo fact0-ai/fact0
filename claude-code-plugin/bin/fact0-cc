@@ -1,99 +1,49 @@
 #!/bin/sh
-#
-# fact0-cc bootstrap — the checked-in entrypoint the plugin's hooks invoke.
-#
-# The real collector is a Go binary that is NOT committed to the repo. This
-# script resolves it in priority order:
-#
-#   1. $FACT0_CC_BIN                     — explicit override (local dev)
-#   2. <script dir>/fact0-cc-dev         — a locally built binary (scripts/build.sh)
-#   3. ~/.fact0/cc/bin/fact0-cc-<v>-<os>-<arch>  — cached release download
-#   4. download from GitHub Releases (checksum-verified), cache, exec
-#
-# CONTRACT: this script must NEVER break a Claude Code session. Every failure
-# path exits 0 silently (stderr only). Requires curl + shasum/sha256sum for
-# the download path; without them, capture is skipped until a dev binary or
-# FACT0_CC_BIN is provided.
+# Hooks only execute a prepared collector. Network installation is an explicit
+# setup step: fact0-cc prepare. Hook failures always exit 0 with no stdout.
 set -u
-
+umask 077
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PLUGIN_DIR=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
-
-log() { printf 'fact0-cc bootstrap: %s\n' "$1" >&2; }
-
-# 1. Explicit override.
-if [ -n "${FACT0_CC_BIN:-}" ] && [ -x "${FACT0_CC_BIN}" ]; then
-    exec "${FACT0_CC_BIN}" "$@"
-fi
-
-# 2. Local dev build.
-if [ -x "${SCRIPT_DIR}/fact0-cc-dev" ]; then
-    exec "${SCRIPT_DIR}/fact0-cc-dev" "$@"
-fi
-
-VERSION=$(cat "${PLUGIN_DIR}/VERSION" 2>/dev/null | tr -d '[:space:]')
-if [ -z "${VERSION}" ]; then
-    log "missing VERSION file; skipping capture"
+PREPARE=0
+[ "${1:-}" = prepare ] && PREPARE=1
+MANUAL=0
+case "${1:-}" in prepare|verify|flush|status) MANUAL=1;; esac
+log() { printf 'fact0-cc: %s\n' "$1" >&2; }
+fail() { log "$1"; if [ "$MANUAL" = 1 ]; then exit 1; else exit 0; fi; }
+run() {
+    if [ "$PREPARE" = 1 ]; then printf 'Collector ready: %s\n' "$1"; exit 0; fi
+    collector=$1
+    shift
+    "$collector" "$@"
+    collector_status=$?
+    [ "$MANUAL" = 1 ] && exit "$collector_status"
     exit 0
-fi
-
-case "$(uname -s)" in
-    Darwin) OS="darwin" ;;
-    Linux)  OS="linux" ;;
-    *)      log "unsupported OS $(uname -s); skipping capture"; exit 0 ;;
-esac
-case "$(uname -m)" in
-    arm64|aarch64) ARCH="arm64" ;;
-    x86_64|amd64)  ARCH="amd64" ;;
-    *)             log "unsupported arch $(uname -m); skipping capture"; exit 0 ;;
-esac
-
+}
+if [ -n "${FACT0_CC_BIN:-}" ] && [ -x "${FACT0_CC_BIN}" ]; then run "${FACT0_CC_BIN}" "$@"; fi
+if [ -x "${SCRIPT_DIR}/fact0-cc-dev" ]; then run "${SCRIPT_DIR}/fact0-cc-dev" "$@"; fi
+VERSION=$(cat "${PLUGIN_DIR}/VERSION" 2>/dev/null | tr -d '[:space:]')
+[ -n "$VERSION" ] || fail 'missing VERSION; capture unavailable'
+case "$(uname -s)" in Darwin) OS=darwin;; Linux) OS=linux;; *) fail 'unsupported OS';; esac
+case "$(uname -m)" in arm64|aarch64) ARCH=arm64;; x86_64|amd64) ARCH=amd64;; *) fail 'unsupported architecture';; esac
 CACHE_DIR="${FACT0_CC_STATE_DIR:-${HOME}/.fact0/cc}/bin"
 CACHED="${CACHE_DIR}/fact0-cc-${VERSION}-${OS}-${ARCH}"
-
-# 3. Cached release binary.
-if [ -x "${CACHED}" ]; then
-    exec "${CACHED}" "$@"
-fi
-
-# 4. Download from GitHub Releases (once per version), verify, cache, exec.
-command -v curl >/dev/null 2>&1 || { log "curl not found; skipping capture"; exit 0; }
-
+if [ -x "$CACHED" ]; then run "$CACHED" "$@"; fi
+[ "$PREPARE" = 1 ] || fail "collector is not prepared; run '${SCRIPT_DIR}/fact0-cc prepare' before starting Claude Code"
+command -v curl >/dev/null 2>&1 || fail 'curl is required to prepare the release binary'
 ASSET="fact0-cc_${VERSION}_${OS}_${ARCH}"
-# FACT0_CC_RELEASE_BASE supports enterprise mirrors and tests.
 RELEASE_BASE="${FACT0_CC_RELEASE_BASE:-https://github.com/fact0-ai/fact0/releases/download}"
 BASE_URL="${RELEASE_BASE}/plugin/v${VERSION}"
-
-mkdir -p "${CACHE_DIR}" 2>/dev/null || { log "cannot create ${CACHE_DIR}"; exit 0; }
+mkdir -p "$CACHE_DIR" || fail 'cannot create collector cache'
+chmod 0700 "$CACHE_DIR" || fail 'cannot secure collector cache'
 TMP="${CACHE_DIR}/.${ASSET}.tmp.$$"
 trap 'rm -f "${TMP}" "${TMP}.sums"' EXIT
-
-if ! curl -fsSL --connect-timeout 5 --max-time 60 -o "${TMP}" "${BASE_URL}/${ASSET}"; then
-    log "download failed (${BASE_URL}/${ASSET}); skipping capture"
-    exit 0
-fi
-
-# Checksum verification: mandatory — a failed or missing checksum aborts.
-if ! curl -fsSL --connect-timeout 5 --max-time 15 -o "${TMP}.sums" "${BASE_URL}/checksums.txt"; then
-    log "checksums.txt download failed; refusing unverified binary"
-    exit 0
-fi
-if command -v sha256sum >/dev/null 2>&1; then
-    GOT=$(sha256sum "${TMP}" | awk '{print $1}')
-elif command -v shasum >/dev/null 2>&1; then
-    GOT=$(shasum -a 256 "${TMP}" | awk '{print $1}')
-else
-    log "no sha256 tool available; refusing unverified binary"
-    exit 0
-fi
-WANT=$(awk -v asset="${ASSET}" '$2 == asset || $2 == "*"asset {print $1}' "${TMP}.sums")
-if [ -z "${WANT}" ] || [ "${GOT}" != "${WANT}" ]; then
-    log "checksum mismatch for ${ASSET}; refusing binary"
-    exit 0
-fi
-
-chmod 0755 "${TMP}" && mv "${TMP}" "${CACHED}" || { log "cache install failed"; exit 0; }
-trap - EXIT
-rm -f "${TMP}.sums"
-log "installed collector v${VERSION} (${OS}/${ARCH})"
-exec "${CACHED}" "$@"
+curl -fsSL --connect-timeout 5 --max-time 60 -o "$TMP" "${BASE_URL}/${ASSET}" || fail "download failed for plugin/v${VERSION}; build with scripts/build.sh if this version is not published"
+curl -fsSL --connect-timeout 5 --max-time 15 -o "${TMP}.sums" "${BASE_URL}/checksums.txt" || fail 'checksum download failed'
+if command -v sha256sum >/dev/null 2>&1; then GOT=$(sha256sum "$TMP" | awk '{print $1}')
+elif command -v shasum >/dev/null 2>&1; then GOT=$(shasum -a 256 "$TMP" | awk '{print $1}')
+else fail 'no SHA-256 tool available'; fi
+WANT=$(awk -v asset="$ASSET" '$2 == asset || $2 == "*"asset {print $1}' "${TMP}.sums")
+[ -n "$WANT" ] && [ "$GOT" = "$WANT" ] || fail 'checksum mismatch; binary refused'
+chmod 0700 "$TMP" && mv "$TMP" "$CACHED" || fail 'cache install failed'
+printf 'Collector ready: %s\n' "$CACHED"

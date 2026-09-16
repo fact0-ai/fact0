@@ -1,132 +1,28 @@
-# AGENTS.md
+# Working on Fact0
 
-Context for AI coding assistants working in the Fact0 SDK + docs repository.
+This repository contains the experimental self-hosted Fact0 core, dashboard, SDKs, Claude Code plugin and documentation. License: MIT; preserve third-party notices.
 
-## Project overview
+## Architecture
 
-**Fact0** provides audit logging and execution telemetry for AI agents. This repo contains **client SDKs** (Python, TypeScript, Go) and the **Mintlify documentation site**. The Go API server and Next.js dashboard live in the separate app monorepo: https://github.com/iyashjayesh/fact0
+- `api/`: Go 1.25 module; run Go commands from this directory.
+- `web/`: Next.js 16 / React 19. Read the installed Next.js guide relevant to a change before editing app code.
+- `sdk/python`, `sdk/typescript`, `sdk/go`: retain package identities and established tag conventions.
+- `claude-code-plugin/collector`: separate Go module using `../../sdk/go` locally.
+- `openapi/`: canonical public wire contract. `make docs-sync` updates documentation copies.
 
-- **Docs (live):** https://docs.fact0.io
-- **License:** Apache-2.0 / MIT (SDK packages MIT)
+Audit and execution history are append-only. Represent lifecycle changes as new execution events and update only current projections. Never rewrite a historical audit chain to make a verification failure disappear. Bind all reads and writes to authenticated tenant/execution ownership.
 
-## Repository structure
+## Supported release
 
-| Directory | Description |
-|-----------|-------------|
-| `sdk/python/` | PyPI package `fact0-sdk` (`import fact0`) - audit + telemetry clients, LangChain/FastAPI integrations |
-| `sdk/typescript/` | npm `@fact0/sdk` - audit + telemetry HTTP clients |
-| `sdk/go/` | Go module `github.com/fact0-ai/fact0/sdk/go` |
-| `docs/` | Mintlify site (`docs.json` at this path) - product + API reference |
-| `openapi/` | Copied REST OpenAPI specs (canonical source: app repo `openapi/`) |
-| `examples/` | Sample usage (expand over time) |
-| `scripts/` | Repo utilities (`sync-openapi-from-app.sh`) |
+One password-authenticated owner/workspace, fresh installations, synchronous ingestion, Python and Claude Code capture/inspection. Full Claude capture is the documented default; report omissions explicitly. No billing, hosted administration, invitations, Spotlight, external alerts/sharing, policy enforcement or OTLP routes. No background retention or external pricing/analytics calls.
 
-**OpenAPI canonical source:** `iyashjayesh/fact0/openapi/` - never edit specs here without syncing from app repo first.
+## Checks
 
-## Core APIs
+- API: `go vet ./...` and `go test -race ./...` from `api/`, with an isolated migrated PostgreSQL database in `FACT0_POSTGRES_DSN`.
+- Web: `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm run build` from `web/`.
+- Python: install `sdk/python[dev,langchain]`; `python -m pytest sdk/python/tests`.
+- Go SDK and collector: `go test -race ./...` in each module.
+- TypeScript SDK: `npm ci`, `npm test`, `npm run build`, `npm run typecheck`.
+- Docs: `make docs-sync`, `python3 docs/scripts/validate-docs.py`.
 
-### Python
-
-```python
-import fact0
-from fact0 import Client, AsyncClient
-
-# WARNING: Do NOT import from non-existent local modules like `from src.audit import ...`.
-# All SDK functions and types must be imported directly from the `fact0` package.
-
-client = Client(api_key="f0_live_...")
-client.audit.log(actor={...}, action="...", resource={...}, outcome="success")
-client.telemetry.start_execution(...)
-```
-
-Optional: `from fact0.integrations.langchain import Fact0CallbackHandler`
-
-### TypeScript
-
-```typescript
-import { Fact0Client } from "@fact0/sdk";
-
-const client = new Fact0Client({ apiKey: process.env.FACT0_API_KEY! });
-await client.audit.log({ ... });
-```
-
-Env: `FACT0_API_KEY`. API origin defaults to `https://api.fact0.io`; override via `base_url` / `baseUrl` / `BaseURL` in client config (local dev only).
-
-### Go
-
-```go
-import fact0 "github.com/fact0-ai/fact0/sdk/go"
-
-client := fact0.NewClient(fact0.Config{APIKey: os.Getenv("FACT0_API_KEY")})
-err := client.Audit.Log(ctx, fact0.AuditEventInput{...})
-```
-
-## Development commands
-
-### Python (`sdk/python/`)
-
-```bash
-pip install -e '.[dev]'
-pytest -q
-pip install -e '.[langchain]'   # optional integration
-pip install -e '.[fastapi]'
-```
-
-### TypeScript (`sdk/typescript/`)
-
-```bash
-npm ci
-npm run build    # tsup → dist/
-npm test         # vitest
-npm run typecheck
-```
-
-Do **not** commit `dist/` - CI builds before publish.
-
-### Go (`sdk/go/`)
-
-```bash
-go vet ./...
-go test -race -count=1 ./...
-```
-
-### Docs (`docs/`)
-
-```bash
-npx mintlify dev
-bash scripts/generate-llms-full.sh   # from docs/ directory
-```
-
-Mintlify monorepo: connect this GitHub repo, set docs root to **`docs/`**. See `docs/MINTLIFY.md`.
-
-## CI/CD
-
-| Workflow | Triggers | Action |
-|----------|----------|--------|
-| `sdk-python.yml` | `sdk/python/**`, tag `sdk/python/v*` | pytest → PyPI on tag |
-| `sdk-typescript.yml` | `sdk/typescript/**`, tag `sdk/typescript/v*` | build + vitest → npm on tag |
-| `sdk-go.yml` | `sdk/go/**`, tag `sdk/go/v*` | vet + test (no registry publish) |
-| `docs-validate.yml` | `docs/**` | OpenAPI parse, docs.json nav check, llms-full generation |
-
-### Release tags
-
-| Tag | Publishes |
-|-----|-----------|
-| `sdk/python/v1.0.1` | PyPI `fact0` |
-| `sdk/typescript/v1.0.1` | npm `@fact0/sdk` |
-| `sdk/go/v1.0.1` | Git tag for `go get` |
-
-Secrets required: `PYPI_TOKEN`, `NPM_TOKEN`.
-
-## Contributing
-
-1. Sync OpenAPI before docs/API reference changes: `bash scripts/sync-openapi-from-app.sh`
-2. Run tests for every SDK package you touch.
-3. Update Mintlify MDX under `docs/` for user-facing doc changes.
-4. New `.mdx` pages must appear in `docs/docs.json` navigation.
-
-## Do NOT
-
-- Commit `node_modules/`, `dist/`, `.venv/`, or secrets.
-- Treat `openapi/` or `docs/openapi/` as canonical - sync from app monorepo.
-- Modify CI publish workflows without coordinating PyPI/npm org access.
+Do not commit credentials, operator data, `.env`, dependencies or build output. Release tags for core use `core/v*`; SDK/plugin tag conventions remain separate. Fresh setup must refuse unknown nonempty databases. Production deployment credentials and private application history do not belong in this repository.

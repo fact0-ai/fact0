@@ -27,7 +27,9 @@ type Config struct {
 	MaxRetries int
 }
 
-// Client is the unified Fact0 SDK client.
+// Client is the unified Fact0 SDK client. Numbers in generic JSON response
+// maps use json.Number, preserving captured integers and decimals exactly.
+// Use Number.Int64 or Number.Float64 when arithmetic is required.
 type Client struct {
 	http       *http.Client
 	cfg        Config
@@ -91,33 +93,70 @@ func (c *Client) doJSON(ctx context.Context, method, path string, in any, out an
 		resp, err := c.http.Do(req)
 		if err != nil {
 			lastErr = err
-			time.Sleep(time.Duration(200*(1<<attempt)) * time.Millisecond)
+			if attempt < c.cfg.MaxRetries {
+				if err := retryWait(ctx, time.Duration(200*(1<<attempt))*time.Millisecond); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		data, readErr := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if readErr != nil {
 			lastErr = readErr
-			time.Sleep(time.Duration(200*(1<<attempt)) * time.Millisecond)
+			if attempt < c.cfg.MaxRetries {
+				if err := retryWait(ctx, time.Duration(200*(1<<attempt))*time.Millisecond); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		if resp.StatusCode < 300 {
 			if out == nil {
 				return nil
 			}
-			return json.Unmarshal(data, out)
+			decoder := json.NewDecoder(bytes.NewReader(data))
+			decoder.UseNumber()
+			if err := decoder.Decode(out); err != nil {
+				return err
+			}
+			var trailing any
+			if err := decoder.Decode(&trailing); err != io.EOF {
+				return fmt.Errorf("invalid JSON response: expected one value")
+			}
+			return nil
 		}
 		if resp.StatusCode != 429 && resp.StatusCode < 500 {
 			return fmt.Errorf("%s %s: %d %s", method, path, resp.StatusCode, string(data))
 		}
 		lastErr = fmt.Errorf("%s %s: %d", method, path, resp.StatusCode)
 		if ra := resp.Header.Get("Retry-After"); ra != "" {
-			if secs, err := strconv.Atoi(ra); err == nil {
-				time.Sleep(time.Duration(secs) * time.Second)
+			if secs, err := strconv.Atoi(ra); err == nil && secs >= 0 && secs <= int((1<<63-1)/int64(time.Second)) {
+				if attempt < c.cfg.MaxRetries {
+					if err := retryWait(ctx, time.Duration(secs)*time.Second); err != nil {
+						return err
+					}
+				}
 				continue
 			}
 		}
-		time.Sleep(time.Duration(200*(1<<attempt)) * time.Millisecond)
+		if attempt < c.cfg.MaxRetries {
+			if err := retryWait(ctx, time.Duration(200*(1<<attempt))*time.Millisecond); err != nil {
+				return err
+			}
+		}
 	}
 	return lastErr
+}
+
+// retryWait honors the caller's deadline even when Retry-After is much longer.
+func retryWait(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

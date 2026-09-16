@@ -1,0 +1,84 @@
+name: fact0
+
+x-api-environment: &api-environment
+  FACT0_POSTGRES_DSN: postgres://fact0:${POSTGRES_PASSWORD:?Run python3 scripts/init-env.py first}@postgres:5432/fact0?sslmode=disable
+  FACT0_OSS_MODE: "true"
+  FACT0_REDACTION_ENABLED: "false"
+  FACT0_RETENTION_DISABLED: "true"
+  FACT0_DIGEST_DISABLED: "true"
+  FACT0_INGEST_ASYNC_DEFAULT: "false"
+  FACT0_INGEST_WORKER_ENABLED: "false"
+  FACT0_SIGNING_KEY: ${FACT0_SIGNING_KEY:?Run python3 scripts/init-env.py first}
+  FACT0_BETTER_AUTH_JWKS_URL: http://web:3000/api/auth/jwks
+  FACT0_BETTER_AUTH_ISSUER: ${BETTER_AUTH_URL:-http://localhost:3000}
+  FACT0_CORS_ALLOWED_ORIGINS: ${BETTER_AUTH_URL:-http://localhost:3000}
+  FACT0_AUTH_WEBHOOK_SECRET: ${AUTH_WEBHOOK_SECRET:?Run python3 scripts/init-env.py first}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: fact0
+      POSTGRES_DB: fact0
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 scripts/init-env.py first}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U fact0 -d fact0"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  migrate:
+    build: ./api
+    environment: *api-environment
+    entrypoint: [/bin/fact0-migrate]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: ./api
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:${FACT0_API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -qO-, "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://fact0:${POSTGRES_PASSWORD}@postgres:5432/fact0?sslmode=disable
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Run python3 scripts/init-env.py first}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      FACT0_BACKEND_URL: http://api:8000
+      AUTH_WEBHOOK_SECRET: ${AUTH_WEBHOOK_SECRET}
+      FACT0_OSS_MODE: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "127.0.0.1:${FACT0_WEB_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:3000/sign-in').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

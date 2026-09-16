@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
-
-	fact0 "github.com/fact0-ai/fact0/sdk/go"
 )
 
 // logf writes a diagnostic line to stderr. The collector must NEVER write to
@@ -25,148 +24,100 @@ func logf(format string, args ...any) {
 //
 //	collector <event-name>   (event payload as JSON on stdin)
 //
-// It must NEVER exit non-zero and NEVER print to stdout, so that a collector
-// failure can never block or perturb the user's Claude Code session.
+// Hook commands never exit non-zero or print to stdout, so that a collector
+// failure cannot block Claude. Manual commands report failures with exit 1.
 func main() {
 	os.Exit(run())
 }
 
-// run performs the work and always returns 0 in the MVP. It exists so that
-// deferred cleanup runs before the process exits via main's os.Exit.
-func run() int {
+// run keeps hook failures fail-soft while preserving manual command results.
+// Deferred cleanup runs before the process exits via main's os.Exit.
+func run() (result int) {
+	event := ""
+	if len(os.Args) > 1 {
+		event = os.Args[1]
+	}
+	manual := event == "verify" || event == "flush" || event == "status"
+	defer func() {
+		if v := recover(); v != nil {
+			logf("capture panic recovered: %v", v)
+			result = 0
+			if manual {
+				result = 1
+			}
+		}
+	}()
 	cfg := LoadConfig()
-
-	// "status" is a manual (non-hook) subcommand: it is run by a human, so it
-	// MAY print to stdout. It requires no network, works even when the
-	// collector is unconfigured/disabled, and always exits 0.
-	if len(os.Args) >= 2 && os.Args[1] == "status" {
-		printStatus(cfg)
-		return 0
-	}
-
-	// "verify" is a manual (non-hook) subcommand. It MAY print to stdout. It
-	// walks the audit hash chain via the backend and prints a concise summary,
-	// always exiting 0.
-	if len(os.Args) >= 2 && os.Args[1] == "verify" {
-		printVerify(cfg)
-		return 0
-	}
-
-	if cfg.Disabled || cfg.APIKey == "" {
-		// Silently no-op: collector is off or unconfigured.
-		return 0
-	}
-
 	if len(os.Args) < 2 {
 		logf("missing event name argument")
 		return 0
 	}
-	event := os.Args[1]
-
-	raw, err := io.ReadAll(os.Stdin)
+	if event == "status" {
+		return printStatus(cfg)
+	}
+	if event == "verify" {
+		return printVerify(cfg)
+	}
+	if cfg.Disabled {
+		if event == "flush" {
+			logf("flush unavailable: capture is disabled")
+			return 1
+		}
+		return 0
+	}
+	if cfg.APIKey == "" {
+		if event == "flush" {
+			logf("flush unavailable: FACT0_API_KEY is not set")
+			return 1
+		}
+		recordCaptureFailure(cfg, "FACT0_API_KEY is not set; hook was not captured")
+		return 0
+	}
+	if event == "flush" {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		if err := drainHooks(ctx, NewFact0(cfg), cfg); err != nil {
+			logf("flush incomplete: %v", err)
+			return 1
+		}
+		return 0
+	}
+	in, err := decodeHook(os.Stdin, cfg)
 	if err != nil {
-		logf("read stdin: %v", err)
+		recordCaptureFailure(cfg, "parse hook: "+err.Error())
 		return 0
 	}
-
-	var in HookInput
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &in); err != nil {
-			logf("parse hook input for %q: %v", event, err)
-			return 0
-		}
-	}
-
-	client := NewFact0(cfg)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-
-	// Redeliver any events that failed to send on earlier invocations. Skipped
-	// on pre-tool, which is the only synchronous hook (governance) and must
-	// stay fast.
-	if event != "pre-tool" {
-		ReplayDeadLetters(ctx, client, cfg)
-	}
-
-	var handlerErr error
-	switch event {
-	case "session-start":
-		handlerErr = HandleSessionStart(ctx, client, cfg, in)
-		// Force-refresh the server-managed policy at the session boundary
-		// (after telemetry so the 8s budget isn't starved).
-		RefreshRemotePolicy(ctx, client, cfg, 0)
-	case "prompt":
-		handlerErr = HandleUserPrompt(ctx, client, cfg, in)
-	case "pre-tool":
-		// Governance runs first. The entire block is fail-open: any panic or
-		// error must result in ALLOW (no stdout, exit 0) so a policy bug can
-		// never brick the user's session.
-		if denied := runGovernance(ctx, client, cfg, in); denied {
-			// EmitDenyDecision has already written the deny payload to stdout.
-			return 0
-		}
-		handlerErr = HandlePreTool(ctx, client, cfg, in)
-	case "post-tool":
-		handlerErr = HandlePostTool(ctx, client, cfg, in)
-	case "post-tool-failure":
-		handlerErr = HandlePostToolFailure(ctx, client, cfg, in)
-	case "permission":
-		handlerErr = HandlePermission(ctx, client, cfg, in)
-	case "notify":
-		handlerErr = HandleNotification(ctx, client, cfg, in)
-	case "subagent-stop":
-		handlerErr = HandleSubagentStop(ctx, client, cfg, in)
-	case "stop":
-		handlerErr = HandleStop(ctx, client, cfg, in)
-		// Opportunistic policy refresh at turn boundaries when stale.
-		RefreshRemotePolicy(ctx, client, cfg, 5*time.Minute)
-	case "session-end":
-		handlerErr = HandleSessionEnd(ctx, client, cfg, in)
-	default:
-		logf("unknown event %q", event)
+	if _, err := enqueueHook(cfg, event, in); err != nil {
+		recordCaptureFailure(cfg, err.Error())
 		return 0
 	}
-
-	if handlerErr != nil {
-		logf("handler %q error: %v", event, handlerErr)
+	// Only the durable local append is synchronous. Delivery runs in an
+	// independent process with no inherited hook pipes, so Claude can proceed.
+	if err := startWorker(); err != nil {
+		recordCaptureFailure(cfg, "hook retained; could not start delivery worker: "+err.Error())
 	}
-
-	// MVP contract: always exit 0, never block the session.
 	return 0
 }
 
-// runGovernance evaluates the pre-tool call against the active policy and, on a
-// deny, emits the deny payload to stdout and returns true. It is fully
-// fail-open: any panic or error degrades to ALLOW (returns false, no stdout).
-// A best-effort POLICY_EVALUATION span is recorded regardless of the outcome.
-func runGovernance(ctx context.Context, client *fact0.Client, cfg Config, in HookInput) (denied bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			logf("governance block panic recovered (fail-open allow): %v", r)
-			denied = false
-		}
-	}()
-
-	d := EvaluateToolCall(cfg, in)
-
-	// Telemetry is best-effort and must never affect the decision.
-	_ = RecordPolicySpan(ctx, client, cfg, in, d.Allow, d.Reason)
-
-	if !d.Allow {
-		EmitDenyDecision(d.Reason)
-		return true
+func startWorker() error {
+	executable, err := os.Executable()
+	if err != nil {
+		return err
 	}
-	return false
+	cmd := exec.Command(executable, "flush")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
 }
 
 // printVerify walks the audit hash chain via the backend and prints a concise
-// summary to stdout. It always exits 0 and is only invoked from the manual
-// "verify" subcommand.
-func printVerify(cfg Config) {
+// summary to stdout. Only a valid verification returns success.
+func printVerify(cfg Config) int {
 	if cfg.APIKey == "" {
 		fmt.Println("fact0-collector verify: FACT0_API_KEY not set; nothing to verify.")
-		return
+		return 1
 	}
 
 	client := NewFact0(cfg)
@@ -176,11 +127,11 @@ func printVerify(cfg Config) {
 	resp, err := client.Audit.Verify(ctx, "")
 	if err != nil {
 		fmt.Printf("fact0-collector verify: could not reach backend: %v\n", err)
-		return
+		return 1
 	}
 
 	verified := false
-	switch v := resp["verified"].(type) {
+	switch v := resp["valid"].(type) {
 	case bool:
 		verified = v
 	case string:
@@ -188,13 +139,17 @@ func printVerify(cfg Config) {
 	}
 
 	fmt.Println("fact0-collector verify")
-	fmt.Printf("  verified: %v\n", verified)
-	if c, ok := resp["count"]; ok {
-		fmt.Printf("  count:    %v\n", c)
+	fmt.Printf("  valid: %v\n", verified)
+	if c, ok := resp["events_checked"]; ok {
+		fmt.Printf("  events_checked: %v\n", c)
 	}
 	if msg, ok := resp["message"].(string); ok && msg != "" {
 		fmt.Printf("  message:  %s\n", msg)
 	}
+	if !verified {
+		return 1
+	}
+	return 0
 }
 
 // maskKey returns a privacy-preserving rendering of an API key for display.
@@ -219,7 +174,7 @@ func onOff(b bool) string {
 // printStatus writes a concise, human-readable collector status to stdout. It
 // is only ever invoked from the manual "status" subcommand (never a hook), so
 // writing to stdout is safe here. It performs no network calls.
-func printStatus(cfg Config) {
+func printStatus(cfg Config) (result int) {
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "<default>"
@@ -238,26 +193,37 @@ func printStatus(cfg Config) {
 	fmt.Printf("  state_dir:   %s\n", cfg.StateDir)
 	fmt.Printf("  dead_letter: %d pending\n", CountDeadLetters(cfg))
 
-	// Governance / policy summary.
-	policyFile := strings.TrimSpace(os.Getenv("FACT0_CC_POLICY_FILE"))
-	if policyFile == "" {
-		policyFile = "<not set>"
+	fmt.Println("  governance:  disabled in this release")
+	entriesPending, spoolErr := os.ReadDir(spoolDir(cfg))
+	if spoolErr != nil && !os.IsNotExist(spoolErr) {
+		fmt.Printf("  spool_error: %v\n", spoolErr)
+		result = 1
 	}
-	pol, active := LoadPolicy(cfg)
-	fmt.Printf("  policy_file: %s\n", policyFile)
-	fmt.Printf("  enforce:     %s\n", onOff(isTruthy(os.Getenv("FACT0_CC_ENFORCE"))))
-	fmt.Printf("  remote_policy: %s\n", onOff(cfg.RemotePolicy))
-	if cache, ok := LoadPolicyCache(cfg); ok {
-		fmt.Printf("  policy_cache:  v%d · %d rule(s) · fetched %s\n",
-			cache.Version, len(cache.Rules), cache.FetchedAt.Format(time.RFC3339))
+	pending := 0
+	permanent := 0
+	for _, e := range entriesPending {
+		if strings.HasPrefix(e.Name(), "hook-") && strings.HasSuffix(e.Name(), ".json") {
+			pending++
+			data, _ := os.ReadFile(filepath.Join(spoolDir(cfg), e.Name()))
+			var env hookEnvelope
+			if json.Unmarshal(data, &env) == nil && env.Permanent {
+				permanent++
+			}
+		}
 	}
-	fmt.Printf("  governance:  %s (%d rule(s))\n", onOff(active), len(pol.Rules))
+	fmt.Printf("  spool:       %d hooks pending (%d require configuration/repair), limit %d bytes\n", pending, permanent, spoolLimit(cfg))
+	if data, err := os.ReadFile(filepath.Join(cfg.StateDir, "capture-error.json")); err == nil {
+		fmt.Printf("  last_capture_error: %s\n", data)
+	}
 
 	fmt.Println("  active sessions:")
 	entries, err := os.ReadDir(cfg.StateDir)
 	if err != nil {
 		fmt.Printf("    <none: %v>\n", err)
-		return
+		if !os.IsNotExist(err) {
+			result = 1
+		}
+		return result
 	}
 	found := 0
 	for _, e := range entries {
@@ -287,4 +253,5 @@ func printStatus(cfg Config) {
 	if found == 0 {
 		fmt.Println("    <none>")
 	}
+	return result
 }

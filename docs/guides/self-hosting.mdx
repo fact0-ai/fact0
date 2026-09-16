@@ -1,0 +1,49 @@
+---
+title: "Operate and restore Fact0"
+description: "Persistent storage, backups, owner recovery and remote access."
+---
+
+## Storage and backups
+
+Audit and execution records do not expire automatically. Monitor database and host disk usage. The collector has a separate bounded local retry spool; a full spool reports capture failure instead of silently evicting pending records.
+
+```sh
+bash scripts/backup.sh
+```
+
+This creates a PostgreSQL custom-format dump under the ignored `backups/` directory with private permissions. Copy `.env` separately to secure backup storage. Retaining the signing key allows old and new exports to be checked against the same trusted public key.
+
+## Restore to a fresh installation
+
+Use the same release version and restore into an empty database. Do not start the API or migration job before restoring an existing backup.
+
+```sh
+# After securely restoring .env in a new checkout:
+docker compose up -d postgres
+docker compose exec -T postgres pg_isready -U fact0 -d fact0
+# Repeat the readiness check until it succeeds, then restore:
+docker compose exec -T postgres pg_restore -U fact0 -d fact0 --exit-on-error < backups/fact0-backup.dump
+docker compose up --build -d --wait
+```
+
+A backup already contains the migration ledger. The migration job validates and preserves it. Check the owner login, a known execution and an audit verification after restoration. This is a full-instance restore, not a merge into another installation.
+
+## Owner password recovery
+
+```sh
+docker compose exec web node scripts/owner.mjs reset-password
+```
+
+Run this trusted local command as an operator with access to the installation. Public signup and email-based recovery are unavailable. Reset revokes browser sessions; previously issued API JWTs expire within 15 minutes. API keys must be revoked separately. Repeating owner creation does not change an existing password.
+
+## Remote access
+
+The default ports bind to `127.0.0.1`. Put a TLS reverse proxy on the same host in front of the web service. Set `BETTER_AUTH_URL=https://your-fact0.example` and leave the internal API address private. Recreate the containers with `docker compose up -d --force-recreate --wait web api`; `docker compose restart` does not load changed environment values. Configure SDKs and collectors with the externally reachable application origin, which proxies `/v1` and `/api/v1` routes. Do not expose PostgreSQL.
+
+Secure cookies depend on the configured HTTPS origin. Avoid proxy buffering for the audit event stream. Do not expose the default HTTP endpoint directly to the internet.
+
+## Updates and shutdown
+
+Back up first, check release notes, pull a released revision, and run `docker compose up --build -d --wait`. Migrations run before the application starts. Preserve `.env` and the database volume. `docker compose down` stops services while keeping data; adding `--volumes` deletes the database and is not part of an ordinary update.
+
+There is no automated migration from the former hosted service and no multi-owner hosting support.

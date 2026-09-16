@@ -1,94 +1,22 @@
 ---
-title: Fact0 Platform
-description: Managed audit log and execution telemetry for AI agents - provisioned in minutes.
+title: "How Fact0 runs"
+description: "One owner, three local services and explicit capture destinations."
 ---
 
-# Fact0 Platform
+Fact0 consists of a Go API, a Next.js dashboard and PostgreSQL. Docker Compose starts a tracked migration job before the application services.
 
-Fact0 Platform is the **managed cloud service** behind [app.fact0.io](https://app.fact0.io). There is no self-hosted edition — sign up, create an API key, and integrate via the SDK against [api.fact0.io](https://api.fact0.io).
+The browser uses the application origin. The web server proxies authenticated API calls to the private API service. SDKs and the Claude collector use your explicitly configured host-accessible API URL. The default exposed ports are bound to localhost.
 
-It runs the audit ingest pipeline, hash-chain verification, telemetry storage, and the compliance dashboard so you only deal with API keys and SDK calls.
+## Supported capabilities
 
-## What you get
+- Executions, spans, errors, DAGs, timelines and replay of recorded history.
+- Basic usage and cost estimates from available telemetry and bundled pricing.
+- Separate audit records with per-tenant hash chains, search and verification.
+- Authenticated PDF/evidence exports signed by a persistent instance key.
+- Python and Claude Code capture workflows.
 
-<CardGroup cols={2}>
-  <Card title="Universal fact layer · tamper-evident audit chain" icon="shield-check">
-    Each event SHA-256 chained per tenant. Verify with `GET /v1/verify` or share a read-only link.
-  </Card>
-  <Card title="Execution telemetry" icon="diagram-project">
-    Spans, DAGs, and frame-by-frame replay for every agent run.
-  </Card>
-  <Card title="Async ingest by default" icon="bolt">
-    Audit writes batch in the background. Receipts are polled by the SDK so you never block on the network.
-  </Card>
-  <Card title="Security evidence packs" icon="file-pdf">
-    Export PDF + ZIP bundles mapped to common security controls. Auditor-ready in minutes.
-  </Card>
-</CardGroup>
+## Release boundaries
 
-## How it fits together
+One owner/workspace, password login, fresh installations and synchronous ingestion. Automatic data expiration is disabled. Billing, hosted administration, invitations, Spotlight, email, alert webhooks, public sharing, governance enforcement and OTLP are unavailable in this release.
 
-```
-┌──────────────────┐   f0_live_*        ┌────────────────────────┐
-│ Your agent / app │ ─────────────────▶ │  Fact0 Platform   │
-│ (Py / TS / Go)   │   /v1/* events     │  api.fact0.io     │
-└──────────────────┘   /api/v1 spans    │                        │
-                                        │  Hash chain · Storage  │
-                                        │  Verification · Export │
-                                        └────────────┬───────────┘
-                                                     │
-                                          ┌──────────▼──────────┐
-                                          │ app.fact0.io   │
-                                          │ Dashboard · DAG     │
-                                          │ Share links · PDF   │
-                                          └─────────────────────┘
-```
-
-## Get started in 60 seconds
-
-<Steps>
-  <Step title="Create an account">
-    [app.fact0.io](https://app.fact0.io) → sign in → onboarding wizard.
-  </Step>
-  <Step title="Mint a write-scoped API key">
-    Dashboard → **Settings → API Keys → New key**. Copy the `f0_live_...` value.
-  </Step>
-  <Step title="Install the SDK">
-    ```bash
-    pip install fact0-sdk
-    ```
-  </Step>
-  <Step title="Log your first event">
-    See the [Quickstart](/quickstart) - first event lands in under a minute.
-  </Step>
-</Steps>
-
-## Two pipelines, one platform
-
-| Need | Use | Endpoint |
-|------|-----|----------|
-| Compliance, security reviews, tamper evidence | **Audit log** | `/v1/*` |
-| Debugging, replay, latency/token analysis | **Telemetry** | `/api/v1/*` |
-| High-value agent actions | **Both** | both |
-
-See [Audit vs telemetry](/concepts/audit-vs-telemetry) for the full breakdown.
-
-## SDKs
-
-<CardGroup cols={3}>
-  <Card title="Python" icon="python" href="/sdk/python/installation">
-    `pip install fact0-sdk`
-  </Card>
-  <Card title="TypeScript" icon="js" href="/sdk/typescript/installation">
-    `npm install @fact0/sdk`
-  </Card>
-  <Card title="Go" icon="golang" href="/sdk/go/installation">
-    `go get github.com/fact0-ai/fact0/sdk/go`
-  </Card>
-</CardGroup>
-
-## Status
-
-- API: [api.fact0.io](https://api.fact0.io)
-- Dashboard: [app.fact0.io](https://app.fact0.io)
-- Status page: coming soon
+No Google OAuth, AWS, Neon, Redis or mail configuration is required. Package installation and initial collector downloads require network access; the core has no required outbound analytics or pricing synchronization.

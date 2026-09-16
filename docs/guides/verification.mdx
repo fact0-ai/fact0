@@ -1,0 +1,35 @@
+---
+title: "Verification and exports"
+description: "Check chain consistency and exported file signatures."
+---
+
+## Audit verification
+
+Use the Audit view or authenticated `GET /v1/verify`. Verification checks hashes and preceding links in insertion sequence, including links outside a selected timestamp window. Late-arriving records must not create a false break merely because their timestamps fall outside that window.
+
+New core records use a versioned SHA-256 canonical JSON recipe documented with the API source. It binds immutable public event fields, including tenant identity, actor/resource types and the preceding hash. Timestamps are normalized to PostgreSQL microsecond precision before hashing. Records cannot be rewritten through a repair/re-anchor route.
+
+## Evidence exports
+
+Download a PDF or evidence ZIP from the authenticated Audit view. Instance setup generates a persistent Ed25519 signing key. Record its public key separately:
+
+```sh
+python3 scripts/export-public-key.py
+```
+
+Then check a ZIP against that trusted value:
+
+```sh
+pip install cryptography
+python3 scripts/verify-export.py evidence.zip --public-key '<trusted public key>'
+```
+
+A key embedded in an archive is insufficient by itself: an attacker could replace both the contents and that key. The verifier compares the archive key to the separately supplied trusted key and checks the PDF and verification JSON signatures.
+
+PDF and evidence reports summarize recorded audit activity; they are not a database backup. Copy/download full captured values from the inspector, and use [PostgreSQL backup and restore](https://github.com/fact0-ai/fact0/blob/main/docs/guides/self-hosting.mdx) to preserve the full instance. The ZIP signs the PDF and verification JSON; its README and explanatory text are informational.
+
+## What a passing result means
+
+A valid chain establishes consistency of the records checked under the documented hash recipe. A valid export signature establishes that the signed file bytes match the trusted instance key. Neither proves that every agent action was captured, that the source agent reported truthfully, or that a database/key administrator could not replace the whole history.
+
+Replay is a reconstruction of recorded activity. Fact0 does not rerun external tools or certify regulatory compliance.

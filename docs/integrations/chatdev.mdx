@@ -22,10 +22,11 @@ pip install fact0-sdk
 One execution per chain, one span per phase.
 
 ```python
+import os
 import fact0
 from chatdev.chat_chain import ChatChain
 
-client = fact0.Client(api_key="f0_live_...")
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 
 chain = ChatChain(
     config_path="CompanyConfig/Default/ChatChainConfig.json",

@@ -1,0 +1,214 @@
+syntax = "proto3";
+
+package fact0.v1;
+
+option go_package = "github.com/fact0-ai/fact0/gen/go/fact0/v1;fact0v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// ─── Enums ──────────────────────────────────────────────────
+
+// ExecutionStatus represents the lifecycle state of an execution.
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNSPECIFIED = 0;
+  EXECUTION_STATUS_RUNNING = 1;
+  EXECUTION_STATUS_COMPLETED = 2;
+  EXECUTION_STATUS_FAILED = 3;
+  EXECUTION_STATUS_CANCELLED = 4;
+}
+
+// SpanStatus represents the lifecycle state of a span.
+enum SpanStatus {
+  SPAN_STATUS_UNSPECIFIED = 0;
+  SPAN_STATUS_STARTED = 1;
+  SPAN_STATUS_COMPLETED = 2;
+  SPAN_STATUS_FAILED = 3;
+  SPAN_STATUS_CANCELLED = 4;
+}
+
+// SpanType classifies the kind of work a span represents.
+enum SpanType {
+  SPAN_TYPE_UNSPECIFIED = 0;
+  SPAN_TYPE_TOOL_CALL = 1;
+  SPAN_TYPE_MODEL_INVOCATION = 2;
+  SPAN_TYPE_STATE_MUTATION = 3;
+  SPAN_TYPE_HUMAN_APPROVAL = 4;
+  SPAN_TYPE_POLICY_EVALUATION = 5;
+  SPAN_TYPE_CUSTOM = 6;
+}
+
+// ApprovalDecision represents the outcome of a human approval.
+enum ApprovalDecision {
+  APPROVAL_DECISION_UNSPECIFIED = 0;
+  APPROVAL_DECISION_APPROVED = 1;
+  APPROVAL_DECISION_REJECTED = 2;
+  APPROVAL_DECISION_ESCALATED = 3;
+}
+
+// PolicyResult represents the outcome of a policy evaluation.
+enum PolicyResult {
+  POLICY_RESULT_UNSPECIFIED = 0;
+  POLICY_RESULT_PASS = 1;
+  POLICY_RESULT_FAIL = 2;
+  POLICY_RESULT_WARN = 3;
+}
+
+// ─── Core Messages ──────────────────────────────────────────
+
+// Execution is the top-level trace container representing a single
+// end-to-end AI agent run.
+message Execution {
+  string id = 1;
+  string agent_id = 2;
+  string agent_name = 3;
+  ExecutionStatus status = 4;
+  string root_span_id = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp ended_at = 7;
+  map<string, string> metadata = 8;
+  string trigger = 9; // what initiated this execution
+}
+
+// Span represents a unit of work within an execution.
+// Spans form a DAG through parent_span_id and caused_by_span_ids.
+message Span {
+  string id = 1;
+  string execution_id = 2;
+  string parent_span_id = 3;
+  repeated string caused_by_span_ids = 4;
+  SpanType span_type = 5;
+  string name = 6;
+  SpanStatus status = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp ended_at = 9;
+  map<string, string> metadata = 10;
+
+  // Type-specific details (only one should be set)
+  ToolCallDetail tool_call = 11;
+  ModelInvocationDetail model_invocation = 12;
+  StateMutationDetail state_mutation = 13;
+  HumanApprovalDetail human_approval = 14;
+  PolicyEvaluationDetail policy_evaluation = 15;
+
+  // Error information if span failed
+  SpanError error = 16;
+}
+
+// SpanError captures error details when a span fails.
+message SpanError {
+  string code = 1;
+  string message = 2;
+  string stack_trace = 3;
+}
+
+// ─── Span Detail Messages ───────────────────────────────────
+
+// ToolCallDetail captures details of an external tool invocation.
+message ToolCallDetail {
+  string tool_name = 1;
+  string tool_version = 2;
+  PayloadRef input = 3;
+  PayloadRef output = 4;
+  int64 duration_ms = 5;
+}
+
+// ModelInvocationDetail captures details of an LLM call.
+message ModelInvocationDetail {
+  string model_name = 1;
+  string model_provider = 2;
+  PayloadRef prompt = 3;
+  PayloadRef completion = 4;
+  int32 prompt_tokens = 5;
+  int32 completion_tokens = 6;
+  int32 total_tokens = 7;
+  int64 latency_ms = 8;
+  double temperature = 9;
+}
+
+// StateMutationDetail captures a state change event.
+message StateMutationDetail {
+  string key = 1;
+  PayloadRef before_value = 2;
+  PayloadRef after_value = 3;
+  string mutation_type = 4; // e.g., "SET", "APPEND", "DELETE"
+}
+
+// HumanApprovalDetail captures a human-in-the-loop decision.
+message HumanApprovalDetail {
+  string approver_id = 1;
+  string approver_name = 2;
+  ApprovalDecision decision = 3;
+  string reasoning = 4;
+  google.protobuf.Timestamp decided_at = 5;
+}
+
+// PolicyEvaluationDetail captures a governance policy check.
+message PolicyEvaluationDetail {
+  string policy_id = 1;
+  string policy_name = 2;
+  PolicyResult result = 3;
+  repeated string violations = 4;
+  map<string, string> context = 5;
+}
+
+// ─── Payload Reference ──────────────────────────────────────
+
+// PayloadRef is a reference to a payload, either inline or in blob storage.
+message PayloadRef {
+  oneof location {
+    google.protobuf.Struct inline = 1;     // Small payloads stored inline
+    string blob_ref = 2;                    // S3 object key for large payloads
+  }
+  int64 size_bytes = 3;
+  string content_type = 4;
+}
+
+// ─── Execution Event ────────────────────────────────────────
+
+// ExecutionEvent is the append-only event log entry.
+message ExecutionEvent {
+  string id = 1;
+  string execution_id = 2;
+  string span_id = 3;
+  string event_type = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  int64 sequence_number = 6;
+  PayloadRef payload = 7;
+  map<string, string> metadata = 8;
+}
+
+// ─── Audit Log (compliance-grade, parallel to ExecutionEvent) ──
+
+// Actor identifies who or what performed an audited action.
+message Actor {
+  string id = 1;
+  // type is one of: "human" | "agent" | "system"
+  string type = 2;
+  string email = 3;
+}
+
+// Resource identifies the object an audited action was performed on.
+message Resource {
+  string id = 1;
+  string type = 2;
+  string name = 3;
+}
+
+// AuditEvent is a universal fact layer entry: tamper-evident, multi-tenant audit log row.
+// Each event in a tenant's chain stores the SHA-256 of the previous
+// event's `hash` in `prev_hash`; the first event uses "genesis".
+message AuditEvent {
+  string id = 1;
+  string tenant_id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  Actor actor = 4;
+  // action uses dot-notation: "<resource>.<verb>", e.g. "document.delete".
+  string action = 5;
+  Resource resource = 6;
+  // outcome is one of: "success" | "failure" | "error"
+  string outcome = 7;
+  google.protobuf.Struct metadata = 8;
+  string prev_hash = 9;
+  string hash = 10;
+}

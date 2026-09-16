@@ -2,6 +2,7 @@ package fact0_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -58,7 +59,7 @@ func TestAuditLogBatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("log batch: %v", err)
 	}
-	if out["accepted"] != float64(2) {
+	if out["accepted"] != json.Number("2") {
 		t.Fatalf("unexpected response: %#v", out)
 	}
 }

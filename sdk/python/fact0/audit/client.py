@@ -57,6 +57,8 @@ class AuditClient:
         self._buf: list[dict[str, Any]] = []
         self._cond = threading.Condition()
         self._stopped = False
+        self._in_flight = 0
+        self._background_error: Fact0Error | None = None
         self._flusher = threading.Thread(target=self._run, daemon=True, name="fact0-audit-flush")
         self._flusher.start()
         atexit.register(self.close)
@@ -95,10 +97,22 @@ class AuditClient:
         while True:
             with self._cond:
                 if not self._buf:
+                    while self._in_flight:
+                        self._cond.wait()
+                    if self._background_error is not None:
+                        error = self._background_error
+                        self._background_error = None
+                        raise error
                     return
                 chunk = self._buf[: self._batch_max_size]
                 del self._buf[: self._batch_max_size]
-            self._send(chunk)
+                self._in_flight += 1
+            try:
+                self._send(chunk)
+            finally:
+                with self._cond:
+                    self._in_flight -= 1
+                    self._cond.notify_all()
 
     def close(self) -> None:
         with self._cond:
@@ -193,12 +207,26 @@ class AuditClient:
                     return
                 chunk = self._buf[: self._batch_max_size]
                 del self._buf[: self._batch_max_size]
+                if chunk:
+                    self._in_flight += 1
             if chunk:
-                self._send(chunk)
+                try:
+                    self._send(chunk)
+                except Fact0Error as error:
+                    # Keep the worker alive and report raise_on_error failures to
+                    # the caller's next flush/close, not an unobserved thread.
+                    with self._cond:
+                        self._background_error = error
+                finally:
+                    with self._cond:
+                        self._in_flight -= 1
+                        self._cond.notify_all()
 
     def _send(self, buf: list[dict[str, Any]]) -> dict[str, Any]:
         try:
             result = self._transport.post_batch(buf)
+            if result.get("rejected", 0) or result.get("errors"):
+                raise TransportError("Audit batch contains rejected items", status_code=200)
             receipt_id = result.get("receipt_id")
             if receipt_id and self._poll_receipts and result.get("status") == "queued":
                 self._transport.poll_receipt(receipt_id)

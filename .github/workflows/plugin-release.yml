@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23"
-          cache-dependency-path: claude-code-plugin/collector/go.sum
+          cache: false
 
       - name: Verify tag matches VERSION file
         run: |
@@ -31,10 +31,23 @@ jobs:
             echo "tag $TAG_VERSION != VERSION file $FILE_VERSION" >&2
             exit 1
           fi
+          python3 - <<'PY'
+          import json, pathlib
+          version = pathlib.Path('claude-code-plugin/VERSION').read_text().strip()
+          plugin = json.loads(pathlib.Path('claude-code-plugin/.claude-plugin/plugin.json').read_text())
+          marketplace = json.loads(pathlib.Path('.claude-plugin/marketplace.json').read_text())
+          assert plugin['version'] == version
+          entries = [p for p in marketplace['plugins'] if p['name'] == plugin['name']]
+          assert len(entries) == 1 and entries[0]['source'] == './claude-code-plugin'
+          assert entries[0].get('version', version) == version
+          PY
 
       - name: Test
         working-directory: claude-code-plugin/collector
         run: go test ./...
+
+      - name: Collect dependency notices for the release toolchain
+        run: python3 scripts/dependency-notices.py --component collector
 
       - name: Build release binaries
         working-directory: claude-code-plugin/collector
@@ -46,6 +59,7 @@ jobs:
               go build -trimpath -ldflags "-s -w" \
               -o "../dist/fact0-cc_${VERSION}_${target%/*}_${target#*/}" .
           done
+          cp ../LICENSE ../THIRD_PARTY_LICENSES.txt ../dist/
           cd ../dist && sha256sum fact0-cc_* > checksums.txt && cat checksums.txt
 
       - name: Create GitHub Release
@@ -54,5 +68,5 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --title "Claude Code plugin ${GITHUB_REF_NAME#plugin/}" \
-            --notes "Collector binaries for the fact0-claude-code plugin. The plugin's bin/fact0-cc bootstrap downloads and checksum-verifies these automatically on first run." \
+            --notes "Collector binaries for the experimental self-hosted Fact0 plugin. Run bin/fact0-cc prepare before your first Claude Code session to download and checksum-verify the binary. Capture hooks never download binaries. See the plugin README for local destination, capture settings and limitations." \
             claude-code-plugin/dist/*

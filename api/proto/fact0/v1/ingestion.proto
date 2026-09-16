@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package fact0.v1;
+
+option go_package = "github.com/fact0-ai/fact0/gen/go/fact0/v1;fact0v1";
+
+import "fact0/v1/execution.proto";
+
+// ─── Ingestion Service ──────────────────────────────────────
+
+// IngestionService handles the intake of execution events from SDKs.
+service IngestionService {
+  // StartExecution initializes a new execution trace.
+  rpc StartExecution(StartExecutionRequest) returns (StartExecutionResponse);
+
+  // IngestSpans accepts a batch of spans for an execution.
+  rpc IngestSpans(IngestSpansRequest) returns (IngestSpansResponse);
+
+  // IngestEvents accepts a batch of execution events.
+  rpc IngestEvents(IngestEventsRequest) returns (IngestEventsResponse);
+
+  // EndExecution marks an execution as completed or failed.
+  rpc EndExecution(EndExecutionRequest) returns (EndExecutionResponse);
+}
+
+// ─── Request/Response Messages ──────────────────────────────
+
+message StartExecutionRequest {
+  string agent_id = 1;
+  string agent_name = 2;
+  string trigger = 3;
+  map<string, string> metadata = 4;
+  string idempotency_key = 5;
+}
+
+message StartExecutionResponse {
+  Execution execution = 1;
+}
+
+message IngestSpansRequest {
+  string execution_id = 1;
+  repeated Span spans = 2;
+}
+
+message IngestSpansResponse {
+  int32 accepted_count = 1;
+  repeated IngestError errors = 2;
+}
+
+message IngestEventsRequest {
+  string execution_id = 1;
+  repeated ExecutionEvent events = 2;
+}
+
+message IngestEventsResponse {
+  int32 accepted_count = 1;
+  repeated IngestError errors = 2;
+}
+
+message EndExecutionRequest {
+  string execution_id = 1;
+  ExecutionStatus status = 2;
+  map<string, string> metadata = 3;
+}
+
+message EndExecutionResponse {
+  Execution execution = 1;
+}
+
+// IngestError reports a validation failure for a specific event.
+message IngestError {
+  string entity_id = 1;
+  string error_code = 2;
+  string error_message = 3;
+}

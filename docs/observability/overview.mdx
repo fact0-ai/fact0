@@ -5,7 +5,7 @@ description: LLM call analytics, tool execution metrics, error rates, and conver
 
 # Observability Hub
 
-The Observability Hub aggregates the execution telemetry your agents emit via the Fact0 SDK (or OpenTelemetry) into four views: **LLM Calls**, **Tool Executions**, **Error Analytics**, and **Conversations**. All metrics are scoped to the last 30 days by default.
+The Observability Hub aggregates the execution telemetry your agents emit via the Fact0 SDK into four views: **LLM Calls**, **Tool Executions**, **Error Analytics**, and **Conversations**. All metrics are scoped to the last 30 days by default.
 
 <Note>
   Metrics populate from execution spans. If you haven't integrated the SDK yet, start with the [Quickstart](/quickstart) or the [SDK overview](/sdk/overview).
@@ -15,12 +15,12 @@ The Observability Hub aggregates the execution telemetry your agents emit via th
 
 ## How data gets here
 
-Every time your agent completes a model call or tool invocation, the SDK emits a **span** to Fact0. The Observability Hub reads those spans and aggregates them server-side:
+When your instrumentation records a model call or tool invocation, the SDK sends a **span** to Fact0. The Observability Hub reads those spans and aggregates them server-side:
 
 ```python
 import fact0, os
 
-client = fact0.Client(api_key=os.environ["FACT0_API_KEY"])
+client = fact0.Client(api_key=os.environ['FACT0_API_KEY'], base_url=os.environ.get('FACT0_BASE_URL', 'http://localhost:8000'))
 
 with client.telemetry.execution(agent_id="my-agent") as ex:
 
@@ -39,7 +39,7 @@ with client.telemetry.execution(agent_id="my-agent") as ex:
         s.complete(tool_call={"tool_name": "web_search", "duration_ms": 340})
 ```
 
-If you use OpenTelemetry, `gen_ai.*` semantic convention attributes are automatically classified as `MODEL_INVOCATION` and tool spans as `TOOL_CALL` — no code changes needed. See [OpenTelemetry integration](/integrations/opentelemetry).
+OTLP ingestion is disabled in this core. Instrument supported spans with the SDK or use the Claude Code collector.
 
 ---
 
@@ -54,7 +54,7 @@ Aggregated statistics for all `MODEL_INVOCATION` spans over the selected period.
 | Avg / P50 / P95 / P99 latency | Percentile latency in ms |
 | Prompt tokens | Input tokens consumed |
 | Completion tokens | Output tokens generated |
-| Estimated cost (USD) | Calculated from provider pricing tables |
+| Estimated cost (USD) | Estimated from reported token usage and bundled model prices |
 
 **By model** — a per-model breakdown of call count, token usage, latency, error count, and estimated cost across all providers your agents use.
 
@@ -118,7 +118,7 @@ The **Prompt Registry** stores versioned prompt templates your agents fetch at r
 
 ## Date range
 
-All tabs respect a shared time range (default: last 30 days). Pass `from` and `to` as ISO 8601 timestamps if querying the API directly:
+The aggregate LLM/tool/error APIs default to the last 30 days. Pass `from` and `to` as ISO 8601 timestamps to select a different range when querying those APIs:
 
 ```
 GET /v1/me/analytics/llm?from=2026-06-01T00:00:00Z&to=2026-06-30T23:59:59Z

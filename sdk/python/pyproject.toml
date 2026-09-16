@@ -34,7 +34,7 @@ fastapi = [
 [project.scripts]
 
 [tool.setuptools]
-license-files = []
+license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 include = ["fact0*"]
