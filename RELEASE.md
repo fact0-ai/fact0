@@ -43,7 +43,11 @@ Public CI runs API tests against PostgreSQL and race checks, frontend lint/type 
 
 The regression suite covers cross-tenant references, duplicate deliveries, parent/child lifecycle updates, late events, audit-field tampering, long sessions, concurrent hooks, HTTP-200 item failures, outages/recovery, Unicode, large JSON integers, long output and request-size boundaries. The local release check also exercises a real Claude Code session with successful and deliberately failing tools, then checks capture, replay and audit exports.
 
-Release acceptance remains pending until these checks, the real-session recheck and public CI pass for the published candidate.
+The candidate passed [public core CI](https://github.com/fact0-ai/fact0/actions/runs/35073725779), including all four jobs and the fresh Docker backup/restore gate. Local browser checks verified owner login, Python graph/replay, audit verification/export and expandable Claude content.
+
+A fresh Claude Code 2.1.273 session passed exact comparison with its source transcript: five assistant messages (819 characters), 9,528 input / 479 output tokens, full 13,102-character tool stdout, Unicode, the integer `9007199254740993`, and the intentional tool failure. Its execution/replay duration matched the captured 10,982 ms. The queue emptied, and the six-event session export passed date-filtered chain and trusted-signature verification. An offline replay fixture also preserved the original 23,698 ms capture interval and all content.
+
+These are synthetic acceptance runs, not customer adoption or production-performance claims.
 
 ## Limits and maintenance
 
